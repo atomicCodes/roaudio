@@ -15,7 +15,7 @@ local DEFAULT_ASSET_IDS = {}
 -- Logo: set LOGO_ASSET_ID to your Roblox image asset ID (numbers only).
 -- To get one: upload assets/roaudio_logo.jpg in Roblox (Creator Hub → Development Items → Images, or Studio Asset Manager), then paste the ID here.
 -- Use "0" or leave as-is to hide the logo until you have an ID.
-local LOGO_ASSET_ID = "104541810910109"
+local LOGO_ASSET_ID = "115220141563031"
 
 local function App(_props)
 	local audioManagerRef = React.useRef(nil)
@@ -149,6 +149,7 @@ local function App(_props)
 			key = "Header",
 			Size = UDim2.new(1, 0, 0, 44),
 			BackgroundTransparency = 1,
+			ClipsDescendants = false,
 		}, {
 			React.createElement("UIListLayout", {
 				key = "Layout",
@@ -250,6 +251,15 @@ local function App(_props)
 			}, {
 				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
 			}),
+			React.createElement("ImageLabel", {
+				key = "Logo",
+				Size = UDim2.new(0, 80, 0, 40),
+				BackgroundTransparency = 1,
+				Image = (logoImageId and #logoImageId > 0) and logoImageId or "",
+				ScaleType = Enum.ScaleType.Fit,
+				Visible = (logoImageId and #logoImageId > 0),
+				ZIndex = 2,
+			}),
 		}),
 		React.createElement("ScrollingFrame", {
 			key = "Scroll",
@@ -291,15 +301,6 @@ local function App(_props)
 			end)()),
 		}),
 		}),
-		(logoImageId and #logoImageId > 0) and React.createElement("ImageLabel", {
-			key = "Logo",
-			Size = UDim2.new(0, 80, 0, 40),
-			Position = UDim2.new(1, -theme.Padding - 80, 0, theme.Padding),
-			AnchorPoint = Vector2.new(1, 0),
-			BackgroundTransparency = 1,
-			Image = logoImageId,
-			ScaleType = Enum.ScaleType.Fit,
-		}) or nil,
 	})
 end
 
