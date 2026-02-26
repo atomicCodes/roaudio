@@ -1,6 +1,0 @@
-[project]
-name = "roaudio"
-
-[dependencies]
-React = "github.com/roblox/react@17.0.1"
-ReactRoblox = "github.com/roblox/react-roblox@17.0.1"
