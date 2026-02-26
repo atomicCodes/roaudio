@@ -6,11 +6,17 @@ A Roblox experience that plays multiple audio files with a clean UI. Uses the Ro
 
 - **Multiple tracks** – Add and remove tracks by Roblox audio asset ID
 - **Playback region** – Waveform-style display with draggable start/end handles (region is applied via `Sound.PlaybackRegion`)
+- **Playhead** – White line on the waveform shows current playback position when playing
+- **Level meter** – Per-channel vertical meter (simulated when using Sound API; real levels need the new Audio API + AudioAnalyzer)
 - **Loop** – Per-track loop toggle
 - **Level** – Per-track volume (0–200%)
 - **EQ** – Low / Mid / High gain per track (EqualizerSoundEffect)
 - **Compression** – Threshold, gain makeup, and on/off (CompressorSoundEffect)
 - **Pan** – Per-track pan slider (stored in state; Roblox Sound does not expose pan in Luau yet)
+
+## Audio API: Sound vs latest
+
+This project uses the **Sound** API (Sound, SoundGroup, SoundEffect, PlaybackRegion, TimePosition). Roblox’s docs now recommend the newer **modular Audio API**: **AudioPlayer**, **Wire**, **AudioDeviceOutput** (and **AudioEmitter**/ **AudioListener** for 3D). The new API also provides **AudioAnalyzer** (PeakLevel, RmsLevel) for real-time level metering when wired to the stream. So we are **not** using the very latest API; we use Sound for compatibility and simplicity. The level meter in the UI is simulated when playing; for true level metering you’d migrate to AudioPlayer + Wire + AudioAnalyzer.
 
 ## Setup
 
@@ -46,7 +52,7 @@ A Roblox experience that plays multiple audio files with a clean UI. Uses the Ro
 - `default.project.json` – Rojo project (syncs `src/` and `Packages/` into the game).
 - `wally.toml` – Wally package manifest (React, ReactRoblox from jsdotlua).
 - `src/Shared/` – ReplicatedStorage: `AudioManager.lua`, `Theme.lua`.
-- `src/Client/` – StarterPlayerScripts: `main.client.lua` (entry), `App.lua`, `components/` (TrackCard, Slider, WaveformRegion).
+- `src/Client/` – StarterPlayerScripts: `main.client.lua` (entry), `App.lua`, `components/` (TrackCard, Slider, WaveformRegion, LevelMeter).
 
 ## Notes
 

@@ -14,6 +14,7 @@ type Props = {
 	duration: number,
 	regionStart: number,
 	regionEnd: number, -- 0 = full
+	timePosition: number?, -- current playhead in seconds; when set, draw playhead line
 	onRegionChange: (start: number, end_: number) -> (),
 }
 
@@ -35,12 +36,14 @@ local function WaveformRegion(props: Props)
 	local duration = math.max(props.duration, 0.001)
 	local regionStart = math.clamp(props.regionStart, 0, duration)
 	local regionEnd = props.regionEnd > 0 and math.clamp(props.regionEnd, regionStart, duration) or duration
+	local timePosition = props.timePosition
 	local onRegionChange = props.onRegionChange
 	local theme = Theme
 	local containerRef = React.useRef(nil)
 
 	local startFrac = regionStart / duration
 	local endFrac = regionEnd / duration
+	local playheadFrac = (type(timePosition) == "number" and duration > 0) and math.clamp(timePosition / duration, 0, 1) or nil
 	local barCount = math.floor(width / 4)
 	local bars = makeBars(barCount, height)
 
@@ -71,41 +74,58 @@ local function WaveformRegion(props: Props)
 			BackgroundTransparency = 1,
 			ClipsDescendants = true,
 			ref = containerRef,
-		}, {
-			React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
-			React.createElement("Frame", {
-				key = "Bars",
-				Size = UDim2.fromScale(1, 1),
-				BackgroundTransparency = 1,
-			}, (function()
-				local els = {}
-				for i, barHeight in ipairs(bars) do
-					local x = (i - 1) / barCount
-					els[i] = React.createElement("Frame", {
-						key = "b" .. i,
-						Size = UDim2.new(0, 2, barHeight / height, -2),
-						Position = UDim2.new(x, 2, 0.5, -barHeight / 2),
-						AnchorPoint = Vector2.new(0, 0.5),
-						BackgroundColor3 = theme.WaveformBar,
-						BorderSizePixel = 0,
-					}, {
-						React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, 1) }),
-					})
-				end
-				return els
-			end)()),
-			React.createElement("Frame", {
-				key = "RegionOverlay",
-				Size = UDim2.new(endFrac - startFrac, 0, 1, 0),
-				Position = UDim2.new(startFrac, 0, 0, 0),
-				BackgroundColor3 = theme.WaveformRegion,
-				BackgroundTransparency = 1 - theme.WaveformRegionAlpha,
-				BorderSizePixel = 0,
-				ZIndex = 1,
-			}, {
+		}, (function()
+			local playheadEl = nil
+			if playheadFrac ~= nil then
+				playheadEl = React.createElement("Frame", {
+					key = "Playhead",
+					Size = UDim2.new(0, 2, 1, 0),
+					Position = UDim2.new(playheadFrac, -1, 0, 0),
+					BackgroundColor3 = theme.Playhead or Color3.fromRGB(255, 255, 255),
+					BackgroundTransparency = 1 - (theme.PlayheadAlpha or 0.9),
+					BorderSizePixel = 0,
+					ZIndex = 3,
+				}, {
+					React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, 1) }),
+				})
+			end
+			local clipChildren = {
 				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
-			}),
-			React.createElement("TextButton", {
+				React.createElement("Frame", {
+					key = "Bars",
+					Size = UDim2.fromScale(1, 1),
+					BackgroundTransparency = 1,
+				}, (function()
+					local els = {}
+					for i, barHeight in ipairs(bars) do
+						local x = (i - 1) / barCount
+						els[i] = React.createElement("Frame", {
+							key = "b" .. i,
+							Size = UDim2.new(0, 2, barHeight / height, -2),
+							Position = UDim2.new(x, 2, 0.5, -barHeight / 2),
+							AnchorPoint = Vector2.new(0, 0.5),
+							BackgroundColor3 = theme.WaveformBar,
+							BorderSizePixel = 0,
+						}, {
+							React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, 1) }),
+						})
+					end
+					return els
+				end)()),
+				React.createElement("Frame", {
+					key = "RegionOverlay",
+					Size = UDim2.new(endFrac - startFrac, 0, 1, 0),
+					Position = UDim2.new(startFrac, 0, 0, 0),
+					BackgroundColor3 = theme.WaveformRegion,
+					BackgroundTransparency = 1 - theme.WaveformRegionAlpha,
+					BorderSizePixel = 0,
+					ZIndex = 1,
+				}, {
+					React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
+				}),
+			}
+			if playheadEl then table.insert(clipChildren, playheadEl) end
+			table.insert(clipChildren, React.createElement("TextButton", {
 				key = "StartHandle",
 				Size = UDim2.new(0, 8, 1, 4),
 				Position = UDim2.new(startFrac, -4, 0, -2),
@@ -130,8 +150,8 @@ local function WaveformRegion(props: Props)
 				end,
 			}, {
 				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, 2) }),
-			}),
-			React.createElement("TextButton", {
+			}))
+			table.insert(clipChildren, React.createElement("TextButton", {
 				key = "EndHandle",
 				Size = UDim2.new(0, 8, 1, 4),
 				Position = UDim2.new(endFrac, -4, 0, -2),
@@ -156,8 +176,9 @@ local function WaveformRegion(props: Props)
 				end,
 			}, {
 				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, 2) }),
-			}),
-		}),
+			}))
+			return clipChildren
+		end)()),
 	})
 end
 

@@ -8,6 +8,7 @@ local Theme = require(ReplicatedStorage.Shared.Theme)
 local AudioManager = require(ReplicatedStorage.Shared.AudioManager)
 local Slider = require(script.Parent.Slider)
 local WaveformRegion = require(script.Parent.WaveformRegion)
+local LevelMeter = require(script.Parent.LevelMeter)
 
 type AudioManager = typeof(AudioManager.new())
 
@@ -58,6 +59,21 @@ local function TrackCard(props: Props)
 			connEnded:Disconnect()
 		end
 	end, { assetId })
+
+	-- Poll playhead when playing so waveform can show position
+	local timePosition, setTimePosition = React.useState(0)
+	React.useEffect(function()
+		if not isPlaying then return end
+		local RunService = game:GetService("RunService")
+		local conn
+		conn = RunService.Heartbeat:Connect(function()
+			local t = audioManager:getTimePosition(assetId)
+			setTimePosition(t)
+		end)
+		return function()
+			conn:Disconnect()
+		end
+	end, { assetId, isPlaying })
 
 	local onPlayStop = React.useCallback(function()
 		if isPlaying then
@@ -165,14 +181,35 @@ local function TrackCard(props: Props)
 			}),
 		}),
 
-		React.createElement(WaveformRegion, {
-			key = "Waveform",
-			width = WAVEFORM_WIDTH,
-			height = WAVEFORM_HEIGHT,
-			duration = duration,
-			regionStart = currentState.regionStart,
-			regionEnd = currentState.regionEnd,
-			onRegionChange = onRegionChange,
+		React.createElement("Frame", {
+			key = "WaveformRow",
+			Size = UDim2.new(1, 0, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+		}, {
+			React.createElement("UIListLayout", {
+				key = "Layout",
+				FillDirection = Enum.FillDirection.Horizontal,
+				Padding = UDim.new(0, theme.Gap),
+				VerticalAlignment = Enum.VerticalAlignment.Center,
+			}),
+			React.createElement(WaveformRegion, {
+				key = "Waveform",
+				width = WAVEFORM_WIDTH,
+				height = WAVEFORM_HEIGHT,
+				duration = duration,
+				regionStart = currentState.regionStart,
+				regionEnd = currentState.regionEnd,
+				timePosition = isPlaying and timePosition or nil,
+				onRegionChange = onRegionChange,
+			}),
+			React.createElement(LevelMeter, {
+				key = "LevelMeter",
+				isPlaying = isPlaying,
+				width = 20,
+				height = WAVEFORM_HEIGHT,
+				bars = 6,
+			}),
 		}),
 
 		React.createElement("Frame", {

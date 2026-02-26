@@ -3,6 +3,11 @@
 	Uses Roblox Sound API: Volume, Looped, PlaybackRegion (NumberRange),
 	EqualizerSoundEffect, CompressorSoundEffect.
 	All Sound instances are parented to SoundService.
+
+	Latest Roblox Audio API: Roblox now recommends the modular Audio API
+	(AudioPlayer, Wire, AudioDeviceOutput, AudioAnalyzer for level metering)
+	over Sound/SoundGroup/SoundEffect. This module uses Sound for simplicity;
+	real level meters require AudioPlayer + AudioAnalyzer wired to the stream.
 ]]
 
 local SoundService = game:GetService("SoundService")
