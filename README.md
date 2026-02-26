@@ -14,24 +14,32 @@ A Roblox experience that plays multiple audio files with a clean UI. Uses the Ro
 
 ## Setup
 
-1. **Install Wally** (package manager):
-   - [Wally](https://wally.run/install) – e.g. `brew install wally` or install via [Aftman](https://github.com/LPGhatguy/aftman): `aftman add UpliftGames/wally` then `aftman install`.
+1. **Install the Rojo CLI** (needed for `rojo serve`):
+   - **Option A – Aftman (recommended)**  
+     Install [Aftman](https://github.com/LPGhatguy/aftman) (download from [Releases](https://github.com/LPGhatguy/aftman/releases), then run `./aftman self-install`).  
+     Then in the project folder:
+     ```bash
+     aftman install
+     ```
+     This installs Rojo and Wally for this project (see `aftman.toml`).
+   - **Option B – Homebrew**  
+     `brew install rojo` (macOS/Linux).
+   - **Option C – Direct download**  
+     [Rojo releases](https://github.com/rojo-rbx/rojo/releases) – download the binary for your OS and put it on your PATH.
 
-2. **Install dependencies**:
+2. **Install Wally packages** (React, ReactRoblox):
    ```bash
    wally install
    ```
-   This creates a `Packages` folder with React and ReactRoblox (official React Lua).
+   This creates a `Packages` folder.
 
-3. **Install Rojo** and connect Studio:
-   - [Rojo](https://rojo.space/) – install the Rojo plugin for Roblox Studio and the `rojo` CLI.
-   - In the project folder, run:
-     ```bash
-     rojo serve
-     ```
-   - In Roblox Studio: Plugins → Rojo → Connect, then sync.
+3. **Install the Rojo plugin in Roblox Studio**  
+   Either run `rojo plugin install` (with Rojo on your PATH) or install the plugin from the [Rojo page](https://rojo.space/) / Studio toolbox.
 
-4. **Open the place** in Roblox Studio and hit Play. The RoAudio UI appears in the corner; add asset IDs and use the controls.
+4. **Start Rojo and connect Studio**:
+   - In the project folder: `rojo serve`
+   - In Roblox Studio: **Plugins → Rojo → Connect** (default: localhost:34872)
+   - Press **Play** to run the game and see the RoAudio UI.
 
 ## Project structure
 

@@ -1,10 +1,11 @@
 [package]
-name = "atomicCodes/roaudio"
+name = "atomic-codes/roaudio"
 version = "0.1.0"
 description = "Multi-track audio player for Roblox with React Lua UI"
 license = "MIT"
 authors = []
 realm = "shared"
+registry = "https://github.com/UpliftGames/wally-index"
 private = true
 
 [dependencies]
