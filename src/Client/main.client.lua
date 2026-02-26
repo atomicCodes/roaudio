@@ -53,20 +53,50 @@ local ok, err = pcall(function()
 	local root = ReactRoblox.createRoot(screenGui)
 	root:render(React.createElement(App))
 
-	-- Logo: create directly so it always shows (top-right). Same ID as in App.lua.
+	-- Logo on its own ScreenGui so nothing can block it. High DisplayOrder = on top.
 	local logoId = "115220141563031"
 	if logoId and #logoId > 0 and logoId ~= "0" then
+		local logoGui = Instance.new("ScreenGui")
+		logoGui.Name = "RoAudioLogoGui"
+		logoGui.ResetOnSpawn = false
+		logoGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		logoGui.DisplayOrder = 50
+		logoGui.IgnoreGuiInset = true
+		logoGui.Parent = playerGui
+
 		local logo = Instance.new("ImageLabel")
 		logo.Name = "RoAudioLogo"
-		logo.Size = UDim2.new(0, 80, 0, 40)
-		logo.Position = UDim2.new(1, -100, 0, 12)
+		logo.Size = UDim2.new(0, 120, 0, 60)
+		logo.Position = UDim2.new(1, -140, 0, 16)
 		logo.AnchorPoint = Vector2.new(1, 0)
-		logo.BackgroundTransparency = 0.3
-		logo.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+		logo.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+		logo.BorderSizePixel = 2
+		logo.BorderColor3 = Color3.fromRGB(0, 200, 180)
 		logo.Image = "rbxassetid://" .. logoId
 		logo.ScaleType = Enum.ScaleType.Fit
-		logo.ZIndex = 100
-		logo.Parent = screenGui
+		logo.Parent = logoGui
+
+		-- Fallback text: hide it when the image finishes loading so your asset shows
+		local label = Instance.new("TextLabel")
+		label.Name = "LogoLabel"
+		label.Size = UDim2.new(1, 0, 1, 0)
+		label.Position = UDim2.new(0, 0, 0, 0)
+		label.BackgroundTransparency = 1
+		label.Text = "RoAudio"
+		label.TextColor3 = Color3.fromRGB(255, 255, 255)
+		label.TextScaled = true
+		label.Font = Enum.Font.GothamBold
+		label.Parent = logo
+
+		local function onLoaded()
+			if logo.IsLoaded then
+				label.Visible = false
+			end
+		end
+		logo:GetPropertyChangedSignal("IsLoaded"):Connect(onLoaded)
+		task.defer(onLoaded)
+
+		print("[RoAudio] Logo GUI created at top-right. If you don't see it, check PlayerGui in Explorer for RoAudioLogoGui.")
 	end
 end)
 
