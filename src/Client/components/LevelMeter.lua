@@ -13,7 +13,7 @@ type Props = {
 	isPlaying: boolean,
 	width: number?,
 	height: number?,
-	bars?: number,
+	bars: number?,
 }
 
 local function LevelMeter(props: Props)
