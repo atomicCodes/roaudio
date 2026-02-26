@@ -12,9 +12,7 @@ local TrackCard = require(script.Parent.components.TrackCard)
 -- (Toolbox → Audio, or your uploaded sounds) to avoid load errors.
 local DEFAULT_ASSET_IDS = {}
 
--- Logo: set LOGO_ASSET_ID to your Roblox image asset ID (numbers only).
--- To get one: upload assets/roaudio_logo.jpg in Roblox (Creator Hub → Development Items → Images, or Studio Asset Manager), then paste the ID here.
--- Use "0" or leave as-is to hide the logo until you have an ID.
+-- Logo: asset ID is used in main.client.lua to create the top-right logo (ImageLabel). Change it there if you update the image.
 local LOGO_ASSET_ID = "115220141563031"
 
 local function App(_props)
@@ -24,24 +22,6 @@ local function App(_props)
 	end
 	local audioManager = audioManagerRef.current
 
-	-- Resolve logo: prefer synced asset from ReplicatedStorage.Assets (if Rojo/Studio populated it), else use LOGO_ASSET_ID.
-	local logoImageId, setLogoImageId = React.useState((LOGO_ASSET_ID and #LOGO_ASSET_ID > 0 and LOGO_ASSET_ID ~= "0") and ("rbxassetid://" .. LOGO_ASSET_ID) or nil)
-	React.useEffect(function()
-		task.spawn(function()
-			local assets = ReplicatedStorage:WaitForChild("Assets", 5)
-			if assets then
-				for _, child in ipairs(assets:GetChildren()) do
-					if (child:IsA("Decal") or child:IsA("Texture")) and child.TextureId and #child.TextureId > 0 then
-						setLogoImageId(child.TextureId)
-						return
-					end
-				end
-			end
-			if LOGO_ASSET_ID and #LOGO_ASSET_ID > 0 and LOGO_ASSET_ID ~= "0" then
-				setLogoImageId("rbxassetid://" .. LOGO_ASSET_ID)
-			end
-		end)
-	end, {})
 	local tracks, setTracks = React.useState(DEFAULT_ASSET_IDS)
 	local addInput, setAddInput = React.useState("")
 
@@ -250,15 +230,6 @@ local function App(_props)
 				[React.Event.MouseButton1Click] = onAddTrack,
 			}, {
 				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
-			}),
-			React.createElement("ImageLabel", {
-				key = "Logo",
-				Size = UDim2.new(0, 80, 0, 40),
-				BackgroundTransparency = 1,
-				Image = (logoImageId and #logoImageId > 0) and logoImageId or "",
-				ScaleType = Enum.ScaleType.Fit,
-				Visible = (logoImageId and #logoImageId > 0),
-				ZIndex = 2,
 			}),
 		}),
 		React.createElement("ScrollingFrame", {

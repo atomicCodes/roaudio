@@ -52,6 +52,22 @@ local ok, err = pcall(function()
 
 	local root = ReactRoblox.createRoot(screenGui)
 	root:render(React.createElement(App))
+
+	-- Logo: create directly so it always shows (top-right). Same ID as in App.lua.
+	local logoId = "115220141563031"
+	if logoId and #logoId > 0 and logoId ~= "0" then
+		local logo = Instance.new("ImageLabel")
+		logo.Name = "RoAudioLogo"
+		logo.Size = UDim2.new(0, 80, 0, 40)
+		logo.Position = UDim2.new(1, -100, 0, 12)
+		logo.AnchorPoint = Vector2.new(1, 0)
+		logo.BackgroundTransparency = 0.3
+		logo.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+		logo.Image = "rbxassetid://" .. logoId
+		logo.ScaleType = Enum.ScaleType.Fit
+		logo.ZIndex = 100
+		logo.Parent = screenGui
+	end
 end)
 
 if not ok then
