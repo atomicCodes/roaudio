@@ -154,6 +154,32 @@ function AudioManager:stop(assetId: string)
 	end
 end
 
+-- Play all given tracks in sync (each from its region start). Stops any already playing first.
+function AudioManager:playAll(assetIds: { string })
+	for _, id in ipairs(assetIds) do
+		self:stop(id)
+	end
+	for _, id in ipairs(assetIds) do
+		local state = self:getOrCreateState(id)
+		self:ensureSound(id, state)
+	end
+	for _, id in ipairs(assetIds) do
+		local state = self:getOrCreateState(id)
+		local sound = self._sounds[id]
+		if sound then
+			sound.TimePosition = state.regionStart
+			sound:Play()
+		end
+	end
+end
+
+-- Stop all given tracks.
+function AudioManager:stopAll(assetIds: { string })
+	for _, id in ipairs(assetIds) do
+		self:stop(id)
+	end
+end
+
 function AudioManager:isPlaying(assetId: string): boolean
 	local sound = self._sounds[assetId]
 	return sound and sound.IsPlaying or false

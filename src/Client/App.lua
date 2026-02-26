@@ -8,8 +8,15 @@ local Theme = require(ReplicatedStorage.Shared.Theme)
 local AudioManager = require(ReplicatedStorage.Shared.AudioManager)
 local TrackCard = require(script.Parent.components.TrackCard)
 
--- Default asset IDs for testing (use Add to add your own; empty avoids 403 on load)
-local DEFAULT_ASSET_IDS = {}
+-- Default asset IDs: 6 tracks so you don't have to add every time. Replace with your own IDs if any 403.
+local DEFAULT_ASSET_IDS = {
+	"184435946",
+	"276972677",
+	"359299661",
+	"459066276",
+	"515373676",
+	"911667837",
+}
 
 local function App(_props)
 	local audioManagerRef = React.useRef(nil)
@@ -45,6 +52,24 @@ local function App(_props)
 			return next
 		end)
 	end, {})
+
+	local onPlayAll = React.useCallback(function()
+		audioManager:playAll(tracks)
+	end, { tracks })
+
+	local onStopAll = React.useCallback(function()
+		audioManager:stopAll(tracks)
+	end, { tracks })
+
+	local onMoveTrack = React.useCallback(function(fromIndex: number, direction: number)
+		local toIndex = fromIndex + direction
+		if toIndex < 1 or toIndex > #tracks then return end
+		setTracks(function(prev)
+			local next = table.clone(prev)
+			next[fromIndex], next[toIndex] = next[toIndex], next[fromIndex]
+			return next
+		end)
+	end, { tracks })
 
 	React.useEffect(function()
 		return function()
@@ -92,6 +117,32 @@ local function App(_props)
 				TextSize = theme.FontSizeTitle,
 				Font = theme.Font,
 				TextXAlignment = Enum.TextXAlignment.Left,
+			}),
+			React.createElement("TextButton", {
+				key = "PlayAll",
+				Size = UDim2.new(0, 90, 0, 32),
+				BackgroundColor3 = theme.Play,
+				BorderSizePixel = 0,
+				Text = "Play all",
+				TextColor3 = theme.Text,
+				TextSize = theme.FontSizeSmall,
+				Font = theme.Font,
+				[React.Event.MouseButton1Click] = onPlayAll,
+			}, {
+				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
+			}),
+			React.createElement("TextButton", {
+				key = "StopAll",
+				Size = UDim2.new(0, 90, 0, 32),
+				BackgroundColor3 = theme.Stop,
+				BorderSizePixel = 0,
+				Text = "Stop all",
+				TextColor3 = theme.Text,
+				TextSize = theme.FontSizeSmall,
+				Font = theme.Font,
+				[React.Event.MouseButton1Click] = onStopAll,
+			}, {
+				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
 			}),
 			React.createElement("Frame", {
 				key = "AddBox",
@@ -164,7 +215,11 @@ local function App(_props)
 						key = assetId,
 						assetId = assetId,
 						audioManager = audioManager,
+						index = i,
+						trackCount = #tracks,
 						onRemove = onRemoveTrack,
+						onMoveUp = function() onMoveTrack(i, -1) end,
+						onMoveDown = function() onMoveTrack(i, 1) end,
 					})
 				end
 				return els

@@ -16,6 +16,10 @@ type Props = {
 	assetId: string,
 	audioManager: AudioManager,
 	onRemove: (assetId: string) -> (),
+	index: number?,
+	trackCount: number?,
+	onMoveUp: (() -> ())?,
+	onMoveDown: (() -> ())?,
 }
 
 local WAVEFORM_WIDTH = 400
@@ -25,6 +29,10 @@ local function TrackCard(props: Props)
 	local assetId = props.assetId
 	local audioManager = props.audioManager
 	local onRemove = props.onRemove
+	local index = props.index or 1
+	local trackCount = props.trackCount or 1
+	local onMoveUp = props.onMoveUp
+	local onMoveDown = props.onMoveDown
 	local theme = Theme
 
 	local state = audioManager:getOrCreateState(assetId)
@@ -160,6 +168,38 @@ local function TrackCard(props: Props)
 						s.looped = not s.looped
 					end)
 					audioManager:ensureSound(assetId, audioManager:getOrCreateState(assetId))
+				end,
+			}, {
+				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
+			}),
+			React.createElement("TextButton", {
+				key = "MoveUp",
+				Size = UDim2.new(0, 32, 0, 28),
+				BackgroundColor3 = theme.SurfaceHover,
+				BorderSizePixel = 0,
+				Text = "↑",
+				TextColor3 = if index > 1 then theme.Text else theme.TextDim,
+				TextSize = theme.FontSizeSmall,
+				Font = theme.Font,
+				Active = index > 1,
+				[React.Event.MouseButton1Click] = function()
+					if index > 1 and onMoveUp then onMoveUp() end
+				end,
+			}, {
+				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
+			}),
+			React.createElement("TextButton", {
+				key = "MoveDown",
+				Size = UDim2.new(0, 32, 0, 28),
+				BackgroundColor3 = theme.SurfaceHover,
+				BorderSizePixel = 0,
+				Text = "↓",
+				TextColor3 = if index < trackCount then theme.Text else theme.TextDim,
+				TextSize = theme.FontSizeSmall,
+				Font = theme.Font,
+				Active = index < trackCount,
+				[React.Event.MouseButton1Click] = function()
+					if index < trackCount and onMoveDown then onMoveDown() end
 				end,
 			}, {
 				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
