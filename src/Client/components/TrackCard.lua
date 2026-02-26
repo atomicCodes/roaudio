@@ -81,30 +81,34 @@ local function TrackCard(props: Props)
 		BackgroundColor3 = theme.Surface,
 		BorderSizePixel = 0,
 	}, {
-		Layout = React.createElement("UIListLayout", {
+		React.createElement("UIListLayout", {
+			key = "Layout",
 			FillDirection = Enum.FillDirection.Vertical,
 			Padding = UDim.new(0, theme.Gap),
 			VerticalAlignment = Enum.VerticalAlignment.Top,
 		}),
-		Padding = React.createElement("UIPadding", {
+		React.createElement("UIPadding", {
+			key = "Padding",
 			PaddingTop = UDim.new(0, theme.Padding),
 			PaddingBottom = UDim.new(0, theme.Padding),
 			PaddingLeft = UDim.new(0, theme.Padding),
 			PaddingRight = UDim.new(0, theme.Padding),
 		}),
-		Corner = React.createElement("UICorner", { CornerRadius = UDim.new(0, theme.Radius) }),
+		React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.Radius) }),
 
-		-- Row 1: title, play/stop, loop, remove
-		Row1 = React.createElement("Frame", {
+		React.createElement("Frame", {
+			key = "Row1",
 			Size = UDim2.new(1, 0, 0, 32),
 			BackgroundTransparency = 1,
 		}, {
-			Layout = React.createElement("UIListLayout", {
+			React.createElement("UIListLayout", {
+				key = "Layout",
 				FillDirection = Enum.FillDirection.Horizontal,
 				Padding = UDim.new(0, theme.Gap),
 				VerticalAlignment = Enum.VerticalAlignment.Center,
 			}),
-			Title = React.createElement("TextLabel", {
+			React.createElement("TextLabel", {
+				key = "Title",
 				Size = UDim2.new(0, 100, 1, 0),
 				BackgroundTransparency = 1,
 				Text = "ID: " .. string.sub(assetId, 1, 10) .. "...",
@@ -113,7 +117,8 @@ local function TrackCard(props: Props)
 				Font = theme.Font,
 				TextXAlignment = Enum.TextXAlignment.Left,
 			}),
-			PlayStop = React.createElement("TextButton", {
+			React.createElement("TextButton", {
+				key = "PlayStop",
 				Size = UDim2.new(0, 56, 0, 28),
 				BackgroundColor3 = if isPlaying then theme.Stop else theme.Play,
 				BorderSizePixel = 0,
@@ -123,9 +128,10 @@ local function TrackCard(props: Props)
 				Font = theme.Font,
 				[React.Event.MouseButton1Click] = onPlayStop,
 			}, {
-				Corner = React.createElement("UICorner", { CornerRadius = UDim.new(0, theme.RadiusSmall) }),
+				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
 			}),
-			Loop = React.createElement("TextButton", {
+			React.createElement("TextButton", {
+				key = "Loop",
 				Size = UDim2.new(0, 60, 0, 28),
 				BackgroundColor3 = if currentState.looped then theme.Accent else theme.SurfaceHover,
 				BorderSizePixel = 0,
@@ -140,9 +146,10 @@ local function TrackCard(props: Props)
 					audioManager:ensureSound(assetId, audioManager:getOrCreateState(assetId))
 				end,
 			}, {
-				Corner = React.createElement("UICorner", { CornerRadius = UDim.new(0, theme.RadiusSmall) }),
+				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
 			}),
-			Remove = React.createElement("TextButton", {
+			React.createElement("TextButton", {
+				key = "Remove",
 				Size = UDim2.new(0, 28, 0, 28),
 				BackgroundColor3 = theme.SurfaceHover,
 				BorderSizePixel = 0,
@@ -154,12 +161,12 @@ local function TrackCard(props: Props)
 					onRemove(assetId)
 				end,
 			}, {
-				Corner = React.createElement("UICorner", { CornerRadius = UDim.new(0, theme.RadiusSmall) }),
+				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
 			}),
 		}),
 
-		-- Waveform + region
-		Waveform = React.createElement(WaveformRegion, {
+		React.createElement(WaveformRegion, {
+			key = "Waveform",
 			width = WAVEFORM_WIDTH,
 			height = WAVEFORM_HEIGHT,
 			duration = duration,
@@ -168,18 +175,20 @@ local function TrackCard(props: Props)
 			onRegionChange = onRegionChange,
 		}),
 
-		-- Row 2: Level, Pan, EQ, Compressor
-		Controls = React.createElement("Frame", {
+		React.createElement("Frame", {
+			key = "Controls",
 			Size = UDim2.new(1, 0, 0, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
 			BackgroundTransparency = 1,
 		}, {
-			Layout = React.createElement("UIListLayout", {
+			React.createElement("UIListLayout", {
+				key = "Layout",
 				FillDirection = Enum.FillDirection.Horizontal,
 				Padding = UDim.new(0, theme.Padding),
 				VerticalAlignment = Enum.VerticalAlignment.Top,
 			}),
-			Level = React.createElement(Slider, {
+			React.createElement(Slider, {
+				key = "Level",
 				label = "Level",
 				value = currentState.volume,
 				min = 0,
@@ -191,7 +200,8 @@ local function TrackCard(props: Props)
 					audioManager:ensureSound(assetId, audioManager:getOrCreateState(assetId))
 				end,
 			}),
-			Pan = React.createElement(Slider, {
+			React.createElement(Slider, {
+				key = "Pan",
 				label = "Pan",
 				value = currentState.pan,
 				min = -1,
@@ -202,17 +212,20 @@ local function TrackCard(props: Props)
 					updateState(function(s) s.pan = v end)
 				end,
 			}),
-			EQ = React.createElement("Frame", {
+			React.createElement("Frame", {
+				key = "EQ",
 				Size = UDim2.new(0, 0, 0, 0),
 				AutomaticSize = Enum.AutomaticSize.XY,
 				BackgroundTransparency = 1,
 			}, {
-				Layout = React.createElement("UIListLayout", {
+				React.createElement("UIListLayout", {
+					key = "Layout",
 					FillDirection = Enum.FillDirection.Horizontal,
 					Padding = UDim.new(0, theme.GapSmall),
 					VerticalAlignment = Enum.VerticalAlignment.Center,
 				}),
-				L = React.createElement(Slider, {
+				React.createElement(Slider, {
+					key = "L",
 					label = "Low",
 					value = currentState.eqLow,
 					min = -20,
@@ -224,7 +237,8 @@ local function TrackCard(props: Props)
 						audioManager:ensureSound(assetId, audioManager:getOrCreateState(assetId))
 					end,
 				}),
-				M = React.createElement(Slider, {
+				React.createElement(Slider, {
+					key = "M",
 					label = "Mid",
 					value = currentState.eqMid,
 					min = -20,
@@ -236,7 +250,8 @@ local function TrackCard(props: Props)
 						audioManager:ensureSound(assetId, audioManager:getOrCreateState(assetId))
 					end,
 				}),
-				H = React.createElement(Slider, {
+				React.createElement(Slider, {
+					key = "H",
 					label = "High",
 					value = currentState.eqHigh,
 					min = -20,
@@ -249,17 +264,20 @@ local function TrackCard(props: Props)
 					end,
 				}),
 			}),
-			Comp = React.createElement("Frame", {
+			React.createElement("Frame", {
+				key = "Comp",
 				Size = UDim2.new(0, 0, 0, 0),
 				AutomaticSize = Enum.AutomaticSize.XY,
 				BackgroundTransparency = 1,
 			}, {
-				Layout = React.createElement("UIListLayout", {
+				React.createElement("UIListLayout", {
+					key = "Layout",
 					FillDirection = Enum.FillDirection.Horizontal,
 					Padding = UDim.new(0, theme.GapSmall),
 					VerticalAlignment = Enum.VerticalAlignment.Center,
 				}),
-				Thresh = React.createElement(Slider, {
+				React.createElement(Slider, {
+					key = "Thresh",
 					label = "Thresh",
 					value = currentState.compressorThreshold,
 					min = -40,
@@ -271,7 +289,8 @@ local function TrackCard(props: Props)
 						audioManager:ensureSound(assetId, audioManager:getOrCreateState(assetId))
 					end,
 				}),
-				Gain = React.createElement(Slider, {
+				React.createElement(Slider, {
+					key = "Gain",
 					label = "Gain",
 					value = currentState.compressorGainMakeup,
 					min = 0,
@@ -283,7 +302,8 @@ local function TrackCard(props: Props)
 						audioManager:ensureSound(assetId, audioManager:getOrCreateState(assetId))
 					end,
 				}),
-				CompToggle = React.createElement("TextButton", {
+				React.createElement("TextButton", {
+					key = "CompToggle",
 					Size = UDim2.new(0, 52, 0, 28),
 					BackgroundColor3 = if currentState.compressorEnabled then theme.Accent else theme.SurfaceHover,
 					BorderSizePixel = 0,
@@ -298,7 +318,7 @@ local function TrackCard(props: Props)
 						audioManager:ensureSound(assetId, audioManager:getOrCreateState(assetId))
 					end,
 				}, {
-					Corner = React.createElement("UICorner", { CornerRadius = UDim.new(0, theme.RadiusSmall) }),
+					React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
 				}),
 			}),
 		}),

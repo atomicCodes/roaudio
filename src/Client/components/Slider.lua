@@ -33,16 +33,19 @@ local function Slider(props: Props)
 		Size = UDim2.new(0, width, 0, 28),
 		BackgroundTransparency = 1,
 	}, {
-		Layout = React.createElement("UIListLayout", {
+		React.createElement("UIListLayout", {
+			key = "Layout",
 			FillDirection = Enum.FillDirection.Vertical,
 			Padding = UDim.new(0, 2),
 			VerticalAlignment = Enum.VerticalAlignment.Center,
 		}),
-		LabelRow = React.createElement("Frame", {
+		React.createElement("Frame", {
+			key = "LabelRow",
 			Size = UDim2.new(1, 0, 0, 14),
 			BackgroundTransparency = 1,
 		}, {
-			Label = React.createElement("TextLabel", {
+			React.createElement("TextLabel", {
+				key = "Label",
 				Size = UDim2.new(1, -40, 1, 0),
 				BackgroundTransparency = 1,
 				Text = label,
@@ -51,7 +54,8 @@ local function Slider(props: Props)
 				Font = theme.Font,
 				TextXAlignment = Enum.TextXAlignment.Left,
 			}),
-			Value = React.createElement("TextLabel", {
+			React.createElement("TextLabel", {
+				key = "Value",
 				Size = UDim2.new(0, 36, 1, 0),
 				Position = UDim2.new(1, -36, 0, 0),
 				BackgroundTransparency = 1,
@@ -62,7 +66,8 @@ local function Slider(props: Props)
 				TextXAlignment = Enum.TextXAlignment.Right,
 			}),
 		}),
-		Track = React.createElement("TextButton", {
+		React.createElement("TextButton", {
+			key = "Track",
 			Size = UDim2.new(1, 0, 0, 6),
 			BackgroundColor3 = theme.Surface,
 			BorderSizePixel = 0,
@@ -79,13 +84,14 @@ local function Slider(props: Props)
 				onChange(newVal)
 			end,
 		}, {
-			Corner = React.createElement("UICorner", { CornerRadius = UDim.new(0, 3) }),
-			Fill = React.createElement("Frame", {
+			React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, 3) }),
+			React.createElement("Frame", {
+				key = "Fill",
 				Size = UDim2.new(normalized, 0, 1, 0),
 				BackgroundColor3 = theme.Accent,
 				BorderSizePixel = 0,
 			}, {
-				Corner = React.createElement("UICorner", { CornerRadius = UDim.new(0, 3) }),
+				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, 3) }),
 			}),
 		}),
 	})

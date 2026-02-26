@@ -64,37 +64,38 @@ local function WaveformRegion(props: Props)
 		BackgroundColor3 = theme.WaveformBg,
 		BorderSizePixel = 0,
 	}, {
-		Corner = React.createElement("UICorner", { CornerRadius = UDim.new(0, theme.RadiusSmall) }),
-		Clip = React.createElement("Frame", {
+		React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
+		React.createElement("Frame", {
+			key = "Clip",
 			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
 			ClipsDescendants = true,
 			ref = containerRef,
 		}, {
-			Corner = React.createElement("UICorner", { CornerRadius = UDim.new(0, theme.RadiusSmall) }),
-			-- Placeholder waveform bars
-			Bars = React.createElement("Frame", {
+			React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
+			React.createElement("Frame", {
+				key = "Bars",
 				Size = UDim2.fromScale(1, 1),
 				BackgroundTransparency = 1,
 			}, (function()
 				local els = {}
 				for i, barHeight in ipairs(bars) do
 					local x = (i - 1) / barCount
-					els["b" .. i] = React.createElement("Frame", {
-						Key = "b" .. i,
+					els[i] = React.createElement("Frame", {
+						key = "b" .. i,
 						Size = UDim2.new(0, 2, barHeight / height, -2),
 						Position = UDim2.new(x, 2, 0.5, -barHeight / 2),
 						AnchorPoint = Vector2.new(0, 0.5),
 						BackgroundColor3 = theme.WaveformBar,
 						BorderSizePixel = 0,
 					}, {
-						Corner = React.createElement("UICorner", { CornerRadius = UDim.new(0, 1) }),
+						React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, 1) }),
 					})
 				end
 				return els
 			end)()),
-			-- Region overlay (between start and end)
-			RegionOverlay = React.createElement("Frame", {
+			React.createElement("Frame", {
+				key = "RegionOverlay",
 				Size = UDim2.new(endFrac - startFrac, 0, 1, 0),
 				Position = UDim2.new(startFrac, 0, 0, 0),
 				BackgroundColor3 = theme.WaveformRegion,
@@ -102,10 +103,10 @@ local function WaveformRegion(props: Props)
 				BorderSizePixel = 0,
 				ZIndex = 1,
 			}, {
-				Corner = React.createElement("UICorner", { CornerRadius = UDim.new(0, theme.RadiusSmall) }),
+				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
 			}),
-			-- Start handle
-			StartHandle = React.createElement("TextButton", {
+			React.createElement("TextButton", {
+				key = "StartHandle",
 				Size = UDim2.new(0, 8, 1, 4),
 				Position = UDim2.new(startFrac, -4, 0, -2),
 				BackgroundColor3 = theme.Accent,
@@ -128,10 +129,10 @@ local function WaveformRegion(props: Props)
 					end)
 				end,
 			}, {
-				Corner = React.createElement("UICorner", { CornerRadius = UDim.new(0, 2) }),
+				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, 2) }),
 			}),
-			-- End handle
-			EndHandle = React.createElement("TextButton", {
+			React.createElement("TextButton", {
+				key = "EndHandle",
 				Size = UDim2.new(0, 8, 1, 4),
 				Position = UDim2.new(endFrac, -4, 0, -2),
 				BackgroundColor3 = theme.Accent,
@@ -154,7 +155,7 @@ local function WaveformRegion(props: Props)
 					end)
 				end,
 			}, {
-				Corner = React.createElement("UICorner", { CornerRadius = UDim.new(0, 2) }),
+				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, 2) }),
 			}),
 		}),
 	})
