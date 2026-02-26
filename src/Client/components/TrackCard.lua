@@ -1,0 +1,308 @@
+--[[
+	TrackCard: one track row with waveform, play/stop, loop, and effect controls.
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local React = require(ReplicatedStorage.Packages.React)
+local Theme = require(ReplicatedStorage.Shared.Theme)
+local AudioManager = require(ReplicatedStorage.Shared.AudioManager)
+local Slider = require(script.Parent.Slider)
+local WaveformRegion = require(script.Parent.WaveformRegion)
+
+type AudioManager = typeof(AudioManager.new())
+
+type Props = {
+	assetId: string,
+	audioManager: AudioManager,
+	onRemove: (assetId: string) -> (),
+}
+
+local WAVEFORM_WIDTH = 400
+local WAVEFORM_HEIGHT = 48
+
+local function TrackCard(props: Props)
+	local assetId = props.assetId
+	local audioManager = props.audioManager
+	local onRemove = props.onRemove
+	local theme = Theme
+
+	local state = audioManager:getOrCreateState(assetId)
+	-- Force re-render when we update state in the manager
+	local updateCounter, setUpdateCounter = React.useState(0)
+	local function updateState(updater: (any) -> ())
+		local s = audioManager:getOrCreateState(assetId)
+		updater(s)
+		setUpdateCounter(function(c) return c + 1 end)
+	end
+
+	-- Ensure sound exists so we can read TimeLength; use current state for effects
+	local currentState = audioManager:getOrCreateState(assetId)
+	audioManager:ensureSound(assetId, currentState)
+	local duration = audioManager:getTimeLength(assetId)
+	local isPlaying = audioManager:isPlaying(assetId)
+
+	-- Re-render when sound loads (TimeLength) or ends
+	React.useEffect(function()
+		local sound = audioManager._sounds[assetId]
+		if not sound then return end
+		local connLength
+		local connEnded
+		connLength = sound:GetPropertyChangedSignal("TimeLength"):Connect(function()
+			setUpdateCounter(function(c) return c + 1 end)
+		end)
+		connEnded = sound.Ended:Connect(function()
+			setUpdateCounter(function(c) return c + 1 end)
+		end)
+		return function()
+			connLength:Disconnect()
+			connEnded:Disconnect()
+		end
+	end, { assetId })
+
+	local onPlayStop = React.useCallback(function()
+		if isPlaying then
+			audioManager:stop(assetId)
+		else
+			audioManager:play(assetId, currentState)
+		end
+		setUpdateCounter(function(c) return c + 1 end)
+	end, { assetId, isPlaying, currentState })
+
+	local onRegionChange = React.useCallback(function(startSec: number, endSec: number)
+		updateState(function(s)
+			s.regionStart = startSec
+			s.regionEnd = endSec
+		end)
+	end, { assetId })
+
+	return React.createElement("Frame", {
+		Size = UDim2.new(1, -theme.Padding * 2, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundColor3 = theme.Surface,
+		BorderSizePixel = 0,
+	}, {
+		Layout = React.createElement("UIListLayout", {
+			FillDirection = Enum.FillDirection.Vertical,
+			Padding = UDim.new(0, theme.Gap),
+			VerticalAlignment = Enum.VerticalAlignment.Top,
+		}),
+		Padding = React.createElement("UIPadding", {
+			PaddingTop = UDim.new(0, theme.Padding),
+			PaddingBottom = UDim.new(0, theme.Padding),
+			PaddingLeft = UDim.new(0, theme.Padding),
+			PaddingRight = UDim.new(0, theme.Padding),
+		}),
+		Corner = React.createElement("UICorner", { CornerRadius = UDim.new(0, theme.Radius) }),
+
+		-- Row 1: title, play/stop, loop, remove
+		Row1 = React.createElement("Frame", {
+			Size = UDim2.new(1, 0, 0, 32),
+			BackgroundTransparency = 1,
+		}, {
+			Layout = React.createElement("UIListLayout", {
+				FillDirection = Enum.FillDirection.Horizontal,
+				Padding = UDim.new(0, theme.Gap),
+				VerticalAlignment = Enum.VerticalAlignment.Center,
+			}),
+			Title = React.createElement("TextLabel", {
+				Size = UDim2.new(0, 100, 1, 0),
+				BackgroundTransparency = 1,
+				Text = "ID: " .. string.sub(assetId, 1, 10) .. "...",
+				TextColor3 = theme.Text,
+				TextSize = theme.FontSize,
+				Font = theme.Font,
+				TextXAlignment = Enum.TextXAlignment.Left,
+			}),
+			PlayStop = React.createElement("TextButton", {
+				Size = UDim2.new(0, 56, 0, 28),
+				BackgroundColor3 = if isPlaying then theme.Stop else theme.Play,
+				BorderSizePixel = 0,
+				Text = if isPlaying then "Stop" else "Play",
+				TextColor3 = theme.Text,
+				TextSize = theme.FontSizeSmall,
+				Font = theme.Font,
+				[React.Event.MouseButton1Click] = onPlayStop,
+			}, {
+				Corner = React.createElement("UICorner", { CornerRadius = UDim.new(0, theme.RadiusSmall) }),
+			}),
+			Loop = React.createElement("TextButton", {
+				Size = UDim2.new(0, 60, 0, 28),
+				BackgroundColor3 = if currentState.looped then theme.Accent else theme.SurfaceHover,
+				BorderSizePixel = 0,
+				Text = "Loop",
+				TextColor3 = theme.Text,
+				TextSize = theme.FontSizeSmall,
+				Font = theme.Font,
+				[React.Event.MouseButton1Click] = function()
+					updateState(function(s)
+						s.looped = not s.looped
+					end)
+					audioManager:ensureSound(assetId, audioManager:getOrCreateState(assetId))
+				end,
+			}, {
+				Corner = React.createElement("UICorner", { CornerRadius = UDim.new(0, theme.RadiusSmall) }),
+			}),
+			Remove = React.createElement("TextButton", {
+				Size = UDim2.new(0, 28, 0, 28),
+				BackgroundColor3 = theme.SurfaceHover,
+				BorderSizePixel = 0,
+				Text = "×",
+				TextColor3 = theme.TextDim,
+				TextSize = 18,
+				Font = theme.Font,
+				[React.Event.MouseButton1Click] = function()
+					onRemove(assetId)
+				end,
+			}, {
+				Corner = React.createElement("UICorner", { CornerRadius = UDim.new(0, theme.RadiusSmall) }),
+			}),
+		}),
+
+		-- Waveform + region
+		Waveform = React.createElement(WaveformRegion, {
+			width = WAVEFORM_WIDTH,
+			height = WAVEFORM_HEIGHT,
+			duration = duration,
+			regionStart = currentState.regionStart,
+			regionEnd = currentState.regionEnd,
+			onRegionChange = onRegionChange,
+		}),
+
+		-- Row 2: Level, Pan, EQ, Compressor
+		Controls = React.createElement("Frame", {
+			Size = UDim2.new(1, 0, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+		}, {
+			Layout = React.createElement("UIListLayout", {
+				FillDirection = Enum.FillDirection.Horizontal,
+				Padding = UDim.new(0, theme.Padding),
+				VerticalAlignment = Enum.VerticalAlignment.Top,
+			}),
+			Level = React.createElement(Slider, {
+				label = "Level",
+				value = currentState.volume,
+				min = 0,
+				max = 2,
+				step = 0.05,
+				width = 90,
+				onChange = function(v)
+					updateState(function(s) s.volume = v end)
+					audioManager:ensureSound(assetId, audioManager:getOrCreateState(assetId))
+				end,
+			}),
+			Pan = React.createElement(Slider, {
+				label = "Pan",
+				value = currentState.pan,
+				min = -1,
+				max = 1,
+				step = 0.05,
+				width = 90,
+				onChange = function(v)
+					updateState(function(s) s.pan = v end)
+				end,
+			}),
+			EQ = React.createElement("Frame", {
+				Size = UDim2.new(0, 0, 0, 0),
+				AutomaticSize = Enum.AutomaticSize.XY,
+				BackgroundTransparency = 1,
+			}, {
+				Layout = React.createElement("UIListLayout", {
+					FillDirection = Enum.FillDirection.Horizontal,
+					Padding = UDim.new(0, theme.GapSmall),
+					VerticalAlignment = Enum.VerticalAlignment.Center,
+				}),
+				L = React.createElement(Slider, {
+					label = "Low",
+					value = currentState.eqLow,
+					min = -20,
+					max = 10,
+					step = 0.5,
+					width = 70,
+					onChange = function(v)
+						updateState(function(s) s.eqLow = v end)
+						audioManager:ensureSound(assetId, audioManager:getOrCreateState(assetId))
+					end,
+				}),
+				M = React.createElement(Slider, {
+					label = "Mid",
+					value = currentState.eqMid,
+					min = -20,
+					max = 10,
+					step = 0.5,
+					width = 70,
+					onChange = function(v)
+						updateState(function(s) s.eqMid = v end)
+						audioManager:ensureSound(assetId, audioManager:getOrCreateState(assetId))
+					end,
+				}),
+				H = React.createElement(Slider, {
+					label = "High",
+					value = currentState.eqHigh,
+					min = -20,
+					max = 10,
+					step = 0.5,
+					width = 70,
+					onChange = function(v)
+						updateState(function(s) s.eqHigh = v end)
+						audioManager:ensureSound(assetId, audioManager:getOrCreateState(assetId))
+					end,
+				}),
+			}),
+			Comp = React.createElement("Frame", {
+				Size = UDim2.new(0, 0, 0, 0),
+				AutomaticSize = Enum.AutomaticSize.XY,
+				BackgroundTransparency = 1,
+			}, {
+				Layout = React.createElement("UIListLayout", {
+					FillDirection = Enum.FillDirection.Horizontal,
+					Padding = UDim.new(0, theme.GapSmall),
+					VerticalAlignment = Enum.VerticalAlignment.Center,
+				}),
+				Thresh = React.createElement(Slider, {
+					label = "Thresh",
+					value = currentState.compressorThreshold,
+					min = -40,
+					max = 0,
+					step = 1,
+					width = 72,
+					onChange = function(v)
+						updateState(function(s) s.compressorThreshold = v end)
+						audioManager:ensureSound(assetId, audioManager:getOrCreateState(assetId))
+					end,
+				}),
+				Gain = React.createElement(Slider, {
+					label = "Gain",
+					value = currentState.compressorGainMakeup,
+					min = 0,
+					max = 20,
+					step = 0.5,
+					width = 72,
+					onChange = function(v)
+						updateState(function(s) s.compressorGainMakeup = v end)
+						audioManager:ensureSound(assetId, audioManager:getOrCreateState(assetId))
+					end,
+				}),
+				CompToggle = React.createElement("TextButton", {
+					Size = UDim2.new(0, 52, 0, 28),
+					BackgroundColor3 = if currentState.compressorEnabled then theme.Accent else theme.SurfaceHover,
+					BorderSizePixel = 0,
+					Text = "Comp",
+					TextColor3 = theme.Text,
+					TextSize = theme.FontSizeSmall,
+					Font = theme.Font,
+					[React.Event.MouseButton1Click] = function()
+						updateState(function(s)
+							s.compressorEnabled = not s.compressorEnabled
+						end)
+						audioManager:ensureSound(assetId, audioManager:getOrCreateState(assetId))
+					end,
+				}, {
+					Corner = React.createElement("UICorner", { CornerRadius = UDim.new(0, theme.RadiusSmall) }),
+				}),
+			}),
+		}),
+	})
+end
+
+return TrackCard

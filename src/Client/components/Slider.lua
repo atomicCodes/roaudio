@@ -1,0 +1,94 @@
+--[[
+	Reusable slider: label, value display, and a draggable track.
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local React = require(ReplicatedStorage.Packages.React)
+local Theme = require(ReplicatedStorage.Shared.Theme)
+
+type Props = {
+	label: string?,
+	value: number,
+	min: number?,
+	max: number?,
+	step: number?,
+	onChange: (number) -> (),
+	width: number?,
+}
+
+local function Slider(props: Props)
+	local label = props.label or ""
+	local value = props.value
+	local min = props.min or 0
+	local max = props.max or 1
+	local step = props.step or 0.01
+	local onChange = props.onChange
+	local width = props.width or 120
+	local theme = Theme
+
+	local normalized = math.clamp((value - min) / (max - min), 0, 1)
+	local displayValue = if step >= 1 then string.format("%d", value) else string.format("%.2f", value)
+
+	return React.createElement("Frame", {
+		Size = UDim2.new(0, width, 0, 28),
+		BackgroundTransparency = 1,
+	}, {
+		Layout = React.createElement("UIListLayout", {
+			FillDirection = Enum.FillDirection.Vertical,
+			Padding = UDim.new(0, 2),
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+		}),
+		LabelRow = React.createElement("Frame", {
+			Size = UDim2.new(1, 0, 0, 14),
+			BackgroundTransparency = 1,
+		}, {
+			Label = React.createElement("TextLabel", {
+				Size = UDim2.new(1, -40, 1, 0),
+				BackgroundTransparency = 1,
+				Text = label,
+				TextColor3 = theme.TextDim,
+				TextSize = theme.FontSizeSmall,
+				Font = theme.Font,
+				TextXAlignment = Enum.TextXAlignment.Left,
+			}),
+			Value = React.createElement("TextLabel", {
+				Size = UDim2.new(0, 36, 1, 0),
+				Position = UDim2.new(1, -36, 0, 0),
+				BackgroundTransparency = 1,
+				Text = displayValue,
+				TextColor3 = theme.TextMuted,
+				TextSize = theme.FontSizeSmall,
+				Font = theme.Font,
+				TextXAlignment = Enum.TextXAlignment.Right,
+			}),
+		}),
+		Track = React.createElement("TextButton", {
+			Size = UDim2.new(1, 0, 0, 6),
+			BackgroundColor3 = theme.Surface,
+			BorderSizePixel = 0,
+			AutoButtonColor = false,
+			[React.Event.MouseButton1Click] = function(rbx)
+				local rel = rbx.AbsolutePosition.X
+				local size = rbx.AbsoluteSize.X
+				local x = game:GetService("UserInputService"):GetMouseLocation().X
+				local frac = math.clamp((x - rel) / size, 0, 1)
+				local newVal = min + frac * (max - min)
+				if step > 0 then
+					newVal = math.floor(newVal / step + 0.5) * step
+				end
+				onChange(newVal)
+			end,
+		}, {
+			Corner = React.createElement("UICorner", { CornerRadius = UDim.new(0, 3) }),
+			Fill = React.createElement("Frame", {
+				Size = UDim2.new(normalized, 0, 1, 0),
+				BackgroundColor3 = theme.Accent,
+				BorderSizePixel = 0,
+			}, {
+				Corner = React.createElement("UICorner", { CornerRadius = UDim.new(0, 3) }),
+			}),
+		}),
+	})
+end
+
+return Slider

@@ -1,0 +1,18 @@
+{
+  "name": "roaudio",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "Shared": { "$path": "src/Shared" },
+      "Packages": { "$path": "Packages" }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "Client": { "$path": "src/Client" }
+      }
+    }
+  }
+}
