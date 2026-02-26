@@ -56,9 +56,9 @@ This project uses the **Sound** API (Sound, SoundGroup, SoundEffect, PlaybackReg
 
 ## Notes
 
-- **Waveform**: Roblox does not expose raw waveform data. The UI shows a placeholder bar “waveform” and uses it to set the playback region (start/end) via `Sound.PlaybackRegion`.
+- **Waveform**: Roblox does not expose raw waveform data. The UI shows a placeholder bar; its width scales with the file duration (same length as the track). Use it to set the playback region (start/end) via `Sound.PlaybackRegion`.
 - **Pan**: The pan slider is in the UI and state only; apply it when Roblox exposes a pan property on Sound or via another API.
-- **Asset IDs**: Use valid Roblox audio asset IDs (e.g. from the Toolbox or your own uploads). The default IDs in `App.lua` are placeholders; replace or remove as needed.
+- **Asset IDs**: The app starts with no default tracks so nothing fails to load (external IDs often 403). Add tracks with the Add box using asset IDs from Toolbox → Audio or your own uploaded sounds.
 
 ## License
 

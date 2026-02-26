@@ -22,8 +22,11 @@ type Props = {
 	onMoveDown: (() -> ())?,
 }
 
-local WAVEFORM_WIDTH = 400
 local WAVEFORM_HEIGHT = 48
+-- Waveform width scales with file duration so length matches the track
+local PIXELS_PER_SECOND = 50
+local MIN_WAVEFORM_WIDTH = 120
+local MAX_WAVEFORM_WIDTH = 1200
 
 local function TrackCard(props: Props)
 	local assetId = props.assetId
@@ -49,6 +52,11 @@ local function TrackCard(props: Props)
 	audioManager:ensureSound(assetId, currentState)
 	local duration = audioManager:getTimeLength(assetId)
 	local isPlaying = audioManager:isPlaying(assetId)
+
+	-- Waveform width = same length as file (duration); clamp for usability
+	local waveformWidth = duration > 0
+		and math.clamp(duration * PIXELS_PER_SECOND, MIN_WAVEFORM_WIDTH, MAX_WAVEFORM_WIDTH)
+		or MIN_WAVEFORM_WIDTH
 
 	-- Re-render when sound loads (TimeLength) or ends
 	React.useEffect(function()
@@ -100,8 +108,8 @@ local function TrackCard(props: Props)
 	end, { assetId })
 
 	return React.createElement("Frame", {
-		Size = UDim2.new(1, -theme.Padding * 2, 0, 0),
-		AutomaticSize = Enum.AutomaticSize.Y,
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.XY,
 		BackgroundColor3 = theme.Surface,
 		BorderSizePixel = 0,
 	}, {
@@ -235,7 +243,7 @@ local function TrackCard(props: Props)
 			}),
 			React.createElement(WaveformRegion, {
 				key = "Waveform",
-				width = WAVEFORM_WIDTH,
+				width = waveformWidth,
 				height = WAVEFORM_HEIGHT,
 				duration = duration,
 				regionStart = currentState.regionStart,

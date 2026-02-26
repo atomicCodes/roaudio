@@ -8,15 +8,9 @@ local Theme = require(ReplicatedStorage.Shared.Theme)
 local AudioManager = require(ReplicatedStorage.Shared.AudioManager)
 local TrackCard = require(script.Parent.components.TrackCard)
 
--- Default asset IDs: 6 tracks so you don't have to add every time. Replace with your own IDs if any 403.
-local DEFAULT_ASSET_IDS = {
-	"184435946",
-	"276972677",
-	"359299661",
-	"459066276",
-	"515373676",
-	"911667837",
-}
+-- No default asset IDs: external IDs often 403 (permissions/region). Add your own via the Add box
+-- (Toolbox → Audio, or your uploaded sounds) to avoid load errors.
+local DEFAULT_ASSET_IDS = {}
 
 local function App(_props)
 	local audioManagerRef = React.useRef(nil)
@@ -195,7 +189,7 @@ local function App(_props)
 			ScrollBarThickness = 6,
 			ScrollBarImageColor3 = theme.Border,
 			CanvasSize = UDim2.fromScale(0, 0),
-			AutomaticCanvasSize = Enum.AutomaticSize.Y,
+			AutomaticCanvasSize = Enum.AutomaticSize.XY,
 		}, {
 			React.createElement("UIListLayout", {
 				key = "List",
