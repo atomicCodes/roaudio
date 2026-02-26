@@ -69,7 +69,7 @@ local function WaveformRegion(props: Props)
 			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
 			ClipsDescendants = true,
-			[React.Ref] = containerRef,
+			ref = containerRef,
 		}, {
 			Corner = React.createElement("UICorner", { CornerRadius = UDim.new(0, theme.RadiusSmall) }),
 			-- Placeholder waveform bars
