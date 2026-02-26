@@ -25,6 +25,9 @@ local function App(_props)
 		local id = addInput:gsub("%D", "")
 		if #id > 0 then
 			setTracks(function(prev)
+				if table.find(prev, id) ~= nil then
+					return prev
+				end
 				local next = table.clone(prev)
 				table.insert(next, id)
 				return next
