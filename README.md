@@ -1,6 +1,6 @@
 # RoAudio
 
-A Roblox experience that plays multiple audio files with a clean UI. Uses the Roblox **Sound** API with **EqualizerSoundEffect**, **CompressorSoundEffect**, **PlaybackRegion**, and **React Lua** for the interface. Synced to Roblox Studio via **Rojo**.
+A Roblox experience that plays multiple audio files with a clean UI. Uses the Roblox **Sound** API with **EqualizerSoundEffect**, **CompressorSoundEffect**, **PlaybackRegion**, and the official **React Lua** ([jsdotlua/react-lua](https://github.com/Roblox/react-lua)) for the interface. Synced to Roblox Studio via **Rojo**. Package management via **Wally**.
 
 ## Features
 
@@ -14,14 +14,14 @@ A Roblox experience that plays multiple audio files with a clean UI. Uses the Ro
 
 ## Setup
 
-1. **Install Rotriever** (Roblox package manager):
-   - [Rotriever](https://github.com/rojo-rbx/rotriever) – install per its docs.
+1. **Install Wally** (package manager):
+   - [Wally](https://wally.run/install) – e.g. `brew install wally` or install via [Aftman](https://github.com/LPGhatguy/aftman): `aftman add UpliftGames/wally` then `aftman install`.
 
 2. **Install dependencies**:
    ```bash
-   rotrieve install
+   wally install
    ```
-   This creates a `Packages` folder with React and ReactRoblox.
+   This creates a `Packages` folder with React and ReactRoblox (official React Lua).
 
 3. **Install Rojo** and connect Studio:
    - [Rojo](https://rojo.space/) – install the Rojo plugin for Roblox Studio and the `rojo` CLI.
@@ -36,7 +36,7 @@ A Roblox experience that plays multiple audio files with a clean UI. Uses the Ro
 ## Project structure
 
 - `default.project.json` – Rojo project (syncs `src/` and `Packages/` into the game).
-- `rotriever.toml` – Rotriever deps (React, ReactRoblox).
+- `wally.toml` – Wally package manifest (React, ReactRoblox from jsdotlua).
 - `src/Shared/` – ReplicatedStorage: `AudioManager.lua`, `Theme.lua`.
 - `src/Client/` – StarterPlayerScripts: `main.client.lua` (entry), `App.lua`, `components/` (TrackCard, Slider, WaveformRegion).
 

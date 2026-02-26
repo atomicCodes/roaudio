@@ -1,5 +1,6 @@
-# Rotriever / Rojo
+# Package managers (Wally / Rotriever)
 Packages/
+wally.lock
 
 # OS
 .DS_Store
