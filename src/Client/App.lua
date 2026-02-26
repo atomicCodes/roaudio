@@ -12,6 +12,11 @@ local TrackCard = require(script.Parent.components.TrackCard)
 -- (Toolbox → Audio, or your uploaded sounds) to avoid load errors.
 local DEFAULT_ASSET_IDS = {}
 
+-- Logo: set LOGO_ASSET_ID to your Roblox image asset ID (numbers only).
+-- To get one: upload assets/roaudio_logo.jpg in Roblox (Creator Hub → Development Items → Images, or Studio Asset Manager), then paste the ID here.
+-- Use "0" or leave as-is to hide the logo until you have an ID.
+local LOGO_ASSET_ID = "104541810910109"
+
 local function App(_props)
 	local audioManagerRef = React.useRef(nil)
 	if audioManagerRef.current == nil then
@@ -19,6 +24,24 @@ local function App(_props)
 	end
 	local audioManager = audioManagerRef.current
 
+	-- Resolve logo: prefer synced asset from ReplicatedStorage.Assets (if Rojo/Studio populated it), else use LOGO_ASSET_ID.
+	local logoImageId, setLogoImageId = React.useState((LOGO_ASSET_ID and #LOGO_ASSET_ID > 0 and LOGO_ASSET_ID ~= "0") and ("rbxassetid://" .. LOGO_ASSET_ID) or nil)
+	React.useEffect(function()
+		task.spawn(function()
+			local assets = ReplicatedStorage:WaitForChild("Assets", 5)
+			if assets then
+				for _, child in ipairs(assets:GetChildren()) do
+					if (child:IsA("Decal") or child:IsA("Texture")) and child.TextureId and #child.TextureId > 0 then
+						setLogoImageId(child.TextureId)
+						return
+					end
+				end
+			end
+			if LOGO_ASSET_ID and #LOGO_ASSET_ID > 0 and LOGO_ASSET_ID ~= "0" then
+				setLogoImageId("rbxassetid://" .. LOGO_ASSET_ID)
+			end
+		end)
+	end, {})
 	local tracks, setTracks = React.useState(DEFAULT_ASSET_IDS)
 	local addInput, setAddInput = React.useState("")
 
@@ -65,6 +88,32 @@ local function App(_props)
 		end)
 	end, { tracks })
 
+	-- Master playhead: show time in seconds when any track is playing (use first playing track's position)
+	local masterTime, setMasterTime = React.useState(0)
+	React.useEffect(function()
+		local RunService = game:GetService("RunService")
+		local conn
+		conn = RunService.Heartbeat:Connect(function()
+			local t = 0
+			for _, id in ipairs(tracks) do
+				if audioManager:isPlaying(id) then
+					t = audioManager:getTimePosition(id)
+					break
+				end
+			end
+			setMasterTime(t)
+		end)
+		return function()
+			conn:Disconnect()
+		end
+	end, { tracks })
+
+	local function formatTime(sec: number): string
+		local m = math.floor(sec / 60)
+		local s = sec - m * 60
+		return string.format("%d:%04.1f", m, s)
+	end
+
 	React.useEffect(function()
 		return function()
 			audioManager:destroy()
@@ -77,21 +126,26 @@ local function App(_props)
 		BackgroundColor3 = theme.Background,
 		BorderSizePixel = 0,
 	}, {
-		React.createElement("UIListLayout", {
-			key = "Layout",
-			FillDirection = Enum.FillDirection.Vertical,
-			Padding = UDim.new(0, theme.Padding),
-			VerticalAlignment = Enum.VerticalAlignment.Top,
-			HorizontalAlignment = Enum.HorizontalAlignment.Center,
-		}),
-		React.createElement("UIPadding", {
-			key = "Padding",
-			PaddingTop = UDim.new(0, theme.Padding),
-			PaddingBottom = UDim.new(0, theme.Padding),
-			PaddingLeft = UDim.new(0, theme.Padding),
-			PaddingRight = UDim.new(0, theme.Padding),
-		}),
 		React.createElement("Frame", {
+			key = "Content",
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+		}, {
+			React.createElement("UIListLayout", {
+				key = "Layout",
+				FillDirection = Enum.FillDirection.Vertical,
+				Padding = UDim.new(0, theme.Padding),
+				VerticalAlignment = Enum.VerticalAlignment.Top,
+				HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			}),
+			React.createElement("UIPadding", {
+				key = "Padding",
+				PaddingTop = UDim.new(0, theme.Padding),
+				PaddingBottom = UDim.new(0, theme.Padding),
+				PaddingLeft = UDim.new(0, theme.Padding),
+				PaddingRight = UDim.new(0, theme.Padding),
+			}),
+			React.createElement("Frame", {
 			key = "Header",
 			Size = UDim2.new(1, 0, 0, 44),
 			BackgroundTransparency = 1,
@@ -137,6 +191,23 @@ local function App(_props)
 				[React.Event.MouseButton1Click] = onStopAll,
 			}, {
 				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
+			}),
+			React.createElement("TextLabel", {
+				key = "Playhead",
+				Size = UDim2.new(0, 72, 0, 32),
+				BackgroundColor3 = theme.Surface,
+				BorderSizePixel = 0,
+				Text = formatTime(masterTime),
+				TextColor3 = theme.Text,
+				TextSize = theme.FontSize,
+				Font = theme.Font,
+			}, {
+				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
+				React.createElement("UIPadding", {
+					key = "Pad",
+					PaddingLeft = UDim.new(0, theme.PaddingSmall),
+					PaddingRight = UDim.new(0, theme.PaddingSmall),
+				}),
 			}),
 			React.createElement("Frame", {
 				key = "AddBox",
@@ -219,6 +290,16 @@ local function App(_props)
 				return els
 			end)()),
 		}),
+		}),
+		(logoImageId and #logoImageId > 0) and React.createElement("ImageLabel", {
+			key = "Logo",
+			Size = UDim2.new(0, 80, 0, 40),
+			Position = UDim2.new(1, -theme.Padding - 80, 0, theme.Padding),
+			AnchorPoint = Vector2.new(1, 0),
+			BackgroundTransparency = 1,
+			Image = logoImageId,
+			ScaleType = Enum.ScaleType.Fit,
+		}) or nil,
 	})
 end
 

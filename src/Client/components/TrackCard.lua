@@ -3,6 +3,7 @@
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local MarketplaceService = game:GetService("MarketplaceService")
 local React = require(ReplicatedStorage.Packages.React)
 local Theme = require(ReplicatedStorage.Shared.Theme)
 local AudioManager = require(ReplicatedStorage.Shared.AudioManager)
@@ -60,14 +61,14 @@ local function TrackCard(props: Props)
 
 	-- Re-render when sound loads (TimeLength) or ends
 	React.useEffect(function()
-		local sound = audioManager._sounds[assetId]
-		if not sound then return end
+		local player = audioManager:getPlayer(assetId)
+		if not player then return end
 		local connLength
 		local connEnded
-		connLength = sound:GetPropertyChangedSignal("TimeLength"):Connect(function()
+		connLength = player:GetPropertyChangedSignal("TimeLength"):Connect(function()
 			setUpdateCounter(function(c) return c + 1 end)
 		end)
-		connEnded = sound.Ended:Connect(function()
+		connEnded = player.Ended:Connect(function()
 			setUpdateCounter(function(c) return c + 1 end)
 		end)
 		return function()
@@ -76,15 +77,19 @@ local function TrackCard(props: Props)
 		end
 	end, { assetId })
 
-	-- Poll playhead when playing so waveform can show position
+	-- Poll playhead and real level when playing (new Audio API provides both)
 	local timePosition, setTimePosition = React.useState(0)
+	local level, setLevel = React.useState(0)
 	React.useEffect(function()
-		if not isPlaying then return end
+		if not isPlaying then
+			setLevel(0)
+			return
+		end
 		local RunService = game:GetService("RunService")
 		local conn
 		conn = RunService.Heartbeat:Connect(function()
-			local t = audioManager:getTimePosition(assetId)
-			setTimePosition(t)
+			setTimePosition(audioManager:getTimePosition(assetId))
+			setLevel(audioManager:getLevel(assetId))
 		end)
 		return function()
 			conn:Disconnect()
@@ -104,6 +109,27 @@ local function TrackCard(props: Props)
 		updateState(function(s)
 			s.regionStart = startSec
 			s.regionEnd = endSec
+		end)
+	end, { assetId })
+
+	-- Fetch asset metadata (Name, Description, Creator) from MarketplaceService
+	local assetInfo, setAssetInfo = React.useState(nil)
+	React.useEffect(function()
+		local id = tonumber(assetId)
+		if not id then return end
+		task.spawn(function()
+			local ok, result = pcall(function()
+				return MarketplaceService:GetProductInfoAsync(id, Enum.InfoType.Asset)
+			end)
+			if ok and type(result) == "table" then
+				setAssetInfo({
+					Name = tostring(result.Name or ""),
+					Description = tostring(result.Description or ""),
+					Creator = type(result.Creator) == "table" and result.Creator or nil,
+				})
+			else
+				setAssetInfo(nil)
+			end
 		end)
 	end, { assetId })
 
@@ -141,13 +167,14 @@ local function TrackCard(props: Props)
 			}),
 			React.createElement("TextLabel", {
 				key = "Title",
-				Size = UDim2.new(0, 100, 1, 0),
+				Size = UDim2.new(0, 180, 1, 0),
 				BackgroundTransparency = 1,
-				Text = "ID: " .. string.sub(assetId, 1, 10) .. "...",
+				Text = (assetInfo and assetInfo.Name and #assetInfo.Name > 0) and assetInfo.Name or ("ID: " .. string.sub(assetId, 1, 12) .. (#assetId > 12 and "..." or "")),
 				TextColor3 = theme.Text,
 				TextSize = theme.FontSize,
 				Font = theme.Font,
 				TextXAlignment = Enum.TextXAlignment.Left,
+				TextTruncate = Enum.TextTruncate.AtEnd,
 			}),
 			React.createElement("TextButton", {
 				key = "PlayStop",
@@ -230,6 +257,47 @@ local function TrackCard(props: Props)
 		}),
 
 		React.createElement("Frame", {
+			key = "Metadata",
+			Size = UDim2.new(1, 0, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+		}, (function()
+			local lines = {}
+			if assetInfo then
+				local desc = assetInfo.Description and #assetInfo.Description > 0 and assetInfo.Description or nil
+				if desc and #desc > 80 then desc = string.sub(desc, 1, 77) .. "..." end
+				local creatorName = assetInfo.Creator and type(assetInfo.Creator.Name) == "string" and assetInfo.Creator.Name or nil
+				if desc then table.insert(lines, desc) end
+				if creatorName then table.insert(lines, "Creator: " .. creatorName) end
+			end
+			table.insert(lines, "Asset ID: " .. assetId)
+			if duration and duration > 0 then
+				table.insert(lines, string.format("Duration: %.1fs", duration))
+			end
+			return {
+				React.createElement("UIListLayout", {
+					key = "Layout",
+					FillDirection = Enum.FillDirection.Vertical,
+					Padding = UDim.new(0, theme.GapSmall),
+					VerticalAlignment = Enum.VerticalAlignment.Top,
+				}),
+				React.createElement("TextLabel", {
+					key = "Meta",
+					Size = UDim2.new(1, -theme.Padding * 2, 0, 0),
+					AutomaticSize = Enum.AutomaticSize.Y,
+					BackgroundTransparency = 1,
+					Text = table.concat(lines, "\n"),
+					TextColor3 = theme.TextDim,
+					TextSize = theme.FontSizeSmall,
+					Font = theme.Font,
+					TextXAlignment = Enum.TextXAlignment.Left,
+					TextYAlignment = Enum.TextYAlignment.Top,
+					TextWrapped = true,
+				}),
+			}
+		end)()),
+
+		React.createElement("Frame", {
 			key = "WaveformRow",
 			Size = UDim2.new(1, 0, 0, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
@@ -256,7 +324,7 @@ local function TrackCard(props: Props)
 				isPlaying = isPlaying,
 				width = 20,
 				height = WAVEFORM_HEIGHT,
-				bars = 6,
+				level = level,
 			}),
 		}),
 

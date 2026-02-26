@@ -1,22 +1,17 @@
 # RoAudio
 
-A Roblox experience that plays multiple audio files with a clean UI. Uses the Roblox **Sound** API with **EqualizerSoundEffect**, **CompressorSoundEffect**, **PlaybackRegion**, and the official **React Lua** ([jsdotlua/react-lua](https://github.com/Roblox/react-lua)) for the interface. Synced to Roblox Studio via **Rojo**. Package management via **Wally**.
+A Roblox experience that plays multiple audio files with a clean UI. Uses the **new Roblox Audio API** (**AudioPlayer**, **Wire**, **AudioDeviceOutput**, **AudioAnalyzer**) for playback and real level metering, and the official **React Lua** ([jsdotlua/react-lua](https://github.com/Roblox/react-lua)) for the interface. Synced to Roblox Studio via **Rojo**. Package management via **Wally**.
 
 ## Features
 
 - **Multiple tracks** – Add and remove tracks by Roblox audio asset ID
-- **Playback region** – Waveform-style display with draggable start/end handles (region is applied via `Sound.PlaybackRegion`)
+- **Playback region** – Waveform-style display with draggable start/end handles (region via `AudioPlayer.PlaybackRegion`)
 - **Playhead** – White line on the waveform shows current playback position when playing
-- **Level meter** – Per-channel vertical meter (simulated when using Sound API; real levels need the new Audio API + AudioAnalyzer)
-- **Loop** – Per-track loop toggle
-- **Level** – Per-track volume (0–200%)
-- **EQ** – Low / Mid / High gain per track (EqualizerSoundEffect)
-- **Compression** – Threshold, gain makeup, and on/off (CompressorSoundEffect)
-- **Pan** – Per-track pan slider (stored in state; Roblox Sound does not expose pan in Luau yet)
-
-## Audio API: Sound vs latest
-
-This project uses the **Sound** API (Sound, SoundGroup, SoundEffect, PlaybackRegion, TimePosition). Roblox’s docs now recommend the newer **modular Audio API**: **AudioPlayer**, **Wire**, **AudioDeviceOutput** (and **AudioEmitter**/ **AudioListener** for 3D). The new API also provides **AudioAnalyzer** (PeakLevel, RmsLevel) for real-time level metering when wired to the stream. So we are **not** using the very latest API; we use Sound for compatibility and simplicity. The level meter in the UI is simulated when playing; for true level metering you’d migrate to AudioPlayer + Wire + AudioAnalyzer.
+- **Level meter** – Per-channel vertical VU meter driven by **AudioAnalyzer.PeakLevel** (real-time)
+- **Loop** – Per-track loop toggle (`AudioPlayer.Looping`)
+- **Level** – Per-track volume (0–200%) (`AudioPlayer.Volume`)
+- **EQ / Compression** – UI sliders kept; new API does not expose Equalizer/Compressor in the same way; state is stored for future use
+- **Pan** – Per-track pan slider (stored in state; not yet exposed in this API path)
 
 ## Setup
 
@@ -53,10 +48,23 @@ This project uses the **Sound** API (Sound, SoundGroup, SoundEffect, PlaybackReg
 - `wally.toml` – Wally package manifest (React, ReactRoblox from jsdotlua).
 - `src/Shared/` – ReplicatedStorage: `AudioManager.lua`, `Theme.lua`.
 - `src/Client/` – StarterPlayerScripts: `main.client.lua` (entry), `App.lua`, `components/` (TrackCard, Slider, WaveformRegion, LevelMeter).
+- `assets/` – Logo image (`roaudio_logo.jpg`); used via asset ID (see Logo below).
+
+## Logo (top-right of UI)
+
+The logo lives in `assets/roaudio_logo.jpg`. **Rojo does not sync image file contents** into Roblox, so the game cannot load it from the folder alone. To show it:
+
+1. **Upload the image** in Roblox: [Creator Hub](https://create.roblox.com/dashboard/creations) → **Development Items** → **Images** → **Add Image**, upload `assets/roaudio_logo.jpg`, then copy the new **asset ID** (numbers only).
+2. In **`src/Client/App.lua`**, set:  
+   `local LOGO_ASSET_ID = "YOUR_ASSET_ID"`  
+   (replace `YOUR_ASSET_ID` with the ID you copied; replace `"0"` if it’s already there).
+3. Save, re-sync with Rojo if needed, and run the experience. The logo will appear in the top-right.
 
 ## Notes
 
-- **Waveform**: Roblox does not expose raw waveform data. The UI shows a placeholder bar; its width scales with the file duration (same length as the track). Use it to set the playback region (start/end) via `Sound.PlaybackRegion`.
+- **Waveform**: Roblox does not expose a full-file waveform. The **Sound** API has no amplitude/spectrum data. The **new Audio API**’s **AudioAnalyzer.GetSpectrum()** returns per-buffer frequency data (live only), so you could draw a live spectrum while playing, but there is no API that returns the waveform for the whole file. The UI uses a placeholder bar whose width scales with duration; use it to set the playback region via `Sound.PlaybackRegion`.
+- **Level meter**: Vertical VU-style meter driven by **AudioAnalyzer.PeakLevel** (new Audio API).
+- **Asset metadata**: Each track fetches metadata via **MarketplaceService:GetProductInfoAsync** (Name, Description, Creator) and displays it with Asset ID and duration.
 - **Pan**: The pan slider is in the UI and state only; apply it when Roblox exposes a pan property on Sound or via another API.
 - **Asset IDs**: The app starts with no default tracks so nothing fails to load (external IDs often 403). Add tracks with the Add box using asset IDs from Toolbox → Audio or your own uploaded sounds.
 

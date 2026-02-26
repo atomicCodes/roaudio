@@ -1,13 +1,10 @@
 --[[
-	AudioManager: creates and controls Sound instances with effects.
-	Uses Roblox Sound API: Volume, Looped, PlaybackRegion (NumberRange),
-	EqualizerSoundEffect, CompressorSoundEffect.
-	All Sound instances are parented to SoundService.
-
-	Latest Roblox Audio API: Roblox now recommends the modular Audio API
-	(AudioPlayer, Wire, AudioDeviceOutput, AudioAnalyzer for level metering)
-	over Sound/SoundGroup/SoundEffect. This module uses Sound for simplicity;
-	real level meters require AudioPlayer + AudioAnalyzer wired to the stream.
+	AudioManager: uses the NEW Roblox Audio API (AudioPlayer, Wire, AudioDeviceOutput, AudioAnalyzer).
+	- One shared AudioDeviceOutput (2D output to speakers).
+	- One AudioPlayer per track, wired to the output and to an AudioAnalyzer for real level metering.
+	- PlaybackRegion, Volume, Looping, TimePosition, TimeLength from AudioPlayer.
+	- Real-time level from AudioAnalyzer.PeakLevel (client-side only).
+	- EQ/Compressor: not available in the new API in the same way; state is kept for future use.
 ]]
 
 local SoundService = game:GetService("SoundService")
@@ -29,87 +26,84 @@ export type TrackState = {
 	compressorAttack: number,
 	compressorRelease: number,
 	compressorGainMakeup: number,
-	pan: number, -- -1 to 1, stored for when Roblox exposes pan on Sound
+	pan: number,
 }
 
 function AudioManager.new()
 	local self = setmetatable({}, AudioManager)
-	self._sounds = {}
+	self._deviceOutput = nil -- single shared 2D output
+	self._players = {}
+	self._wiresOut = {} -- Wire from each player to device output
+	self._analyzers = {}
+	self._wiresAnalyzer = {} -- Wire from each player to its analyzer (for level)
 	self._trackStates = {}
 	return self
 end
 
--- Creates or updates a Sound for the given asset id and applies current state.
-function AudioManager:ensureSound(assetId: string, state: TrackState?): Sound
-	local key = assetId
-	local sound = self._sounds[key]
-	state = state or self._trackStates[key]
+local function getOrCreateDeviceOutput(self): Instance
+	if self._deviceOutput then
+		return self._deviceOutput
+	end
+	local output = Instance.new("AudioDeviceOutput")
+	output.Name = "RoAudio_2DOutput"
+	output.Parent = SoundService
+	self._deviceOutput = output
+	return output
+end
 
-	if not sound then
-		sound = Instance.new("Sound")
-		sound.SoundId = "rbxassetid://" .. tostring(assetId)
-		sound.Name = "Track_" .. assetId
-		sound.Parent = SoundService
-		self._sounds[key] = sound
-		self:attachEffects(sound)
+-- Creates or updates an AudioPlayer (and Wire + AudioAnalyzer) for the given asset id.
+function AudioManager:ensureSound(assetId: string, state: TrackState?): Instance?
+	local key = assetId
+	state = state or self._trackStates[key]
+	local player = self._players[key]
+
+	if not player then
+		player = Instance.new("AudioPlayer")
+		player.Name = "Track_" .. assetId
+		player.Parent = SoundService
+		-- Use AssetId (still works; Asset is ContentId for future)
+		player.AssetId = "rbxassetid://" .. tostring(assetId)
+		player.AutoLoad = true
+		self._players[key] = player
+
+		local output = getOrCreateDeviceOutput(self)
+		local wireOut = Instance.new("Wire")
+		wireOut.SourceInstance = player
+		wireOut.TargetInstance = output
+		wireOut.Parent = SoundService
+		self._wiresOut[key] = wireOut
+
+		local analyzer = Instance.new("AudioAnalyzer")
+		analyzer.Name = "Analyzer_" .. assetId
+		analyzer.Parent = SoundService
+		analyzer.SpectrumEnabled = false -- we only need level for VU; set true if using GetSpectrum
+		self._analyzers[key] = analyzer
+
+		local wireAnalyzer = Instance.new("Wire")
+		wireAnalyzer.SourceInstance = player
+		wireAnalyzer.TargetInstance = analyzer
+		wireAnalyzer.Parent = SoundService
+		self._wiresAnalyzer[key] = wireAnalyzer
 	end
 
 	self._trackStates[key] = state
-	self:applyState(sound, state)
-	return sound
+	self:applyState(player, state)
+	return player
 end
 
-function AudioManager:attachEffects(sound: Sound)
-	-- Equalizer: Low 0-400Hz, Mid 400-4kHz, High 4kHz+
-	local eq = sound:FindFirstChildOfClass("EqualizerSoundEffect")
-	if not eq then
-		eq = Instance.new("EqualizerSoundEffect")
-		eq.Name = "EQ"
-		eq.Priority = 0
-		eq.Parent = sound
-	end
+function AudioManager:applyState(player: Instance, state: TrackState)
+	player.Volume = state.volume
+	player.Looping = state.looped
 
-	-- Compressor
-	local comp = sound:FindFirstChildOfClass("CompressorSoundEffect")
-	if not comp then
-		comp = Instance.new("CompressorSoundEffect")
-		comp.Name = "Compressor"
-		comp.Priority = 1
-		comp.Parent = sound
-	end
-end
-
-function AudioManager:applyState(sound: Sound, state: TrackState)
-	sound.Volume = state.volume
-	sound.Looped = state.looped
-
-	-- PlaybackRegion: NumberRange(Min, Max). Use 0 and sound.TimeLength for full.
-	local length = sound.TimeLength
+	local length = player.TimeLength
 	if length == 0 then
-		length = 60 -- fallback while loading
+		length = 60
 	end
 	local startSec = math.clamp(state.regionStart, 0, length)
 	local endSec = state.regionEnd > 0 and math.clamp(state.regionEnd, startSec, length) or length
-	sound.PlaybackRegion = NumberRange.new(startSec, endSec)
+	player.PlaybackRegion = NumberRange.new(startSec, endSec)
 
-	local eq = sound:FindFirstChildOfClass("EqualizerSoundEffect")
-	if eq then
-		eq.LowGain = state.eqLow
-		eq.MidGain = state.eqMid
-		eq.HighGain = state.eqHigh
-	end
-
-	local comp = sound:FindFirstChildOfClass("CompressorSoundEffect")
-	if comp then
-		comp.Enabled = state.compressorEnabled
-		comp.Threshold = state.compressorThreshold
-		comp.Attack = state.compressorAttack
-		comp.Release = state.compressorRelease
-		comp.GainMakeup = state.compressorGainMakeup
-	end
-
-	-- Pan: Roblox Sound does not expose panStereo in Luau; store for future API.
-	-- If your engine has it: sound.Pan = state.pan (or similar)
+	-- EQ/Compressor: new API does not expose EqualizerSoundEffect/CompressorSoundEffect on this chain; state kept for UI
 end
 
 function AudioManager:getDefaultState(soundId: string): TrackState
@@ -140,21 +134,20 @@ function AudioManager:getOrCreateState(assetId: string): TrackState
 end
 
 function AudioManager:play(assetId: string, state: TrackState?)
-	local state = state or self:getOrCreateState(assetId)
-	local sound = self:ensureSound(assetId, state)
-	sound.TimePosition = state.regionStart
-	sound:Play()
-	return sound
+	state = state or self:getOrCreateState(assetId)
+	local player = self:ensureSound(assetId, state)
+	if not player then return end
+	player.TimePosition = state.regionStart
+	player:Play()
 end
 
 function AudioManager:stop(assetId: string)
-	local sound = self._sounds[assetId]
-	if sound then
-		sound:Stop()
+	local player = self._players[assetId]
+	if player then
+		player:Stop()
 	end
 end
 
--- Play all given tracks in sync (each from its region start). Stops any already playing first.
 function AudioManager:playAll(assetIds: { string })
 	for _, id in ipairs(assetIds) do
 		self:stop(id)
@@ -165,15 +158,14 @@ function AudioManager:playAll(assetIds: { string })
 	end
 	for _, id in ipairs(assetIds) do
 		local state = self:getOrCreateState(id)
-		local sound = self._sounds[id]
-		if sound then
-			sound.TimePosition = state.regionStart
-			sound:Play()
+		local player = self._players[id]
+		if player then
+			player.TimePosition = state.regionStart
+			player:Play()
 		end
 	end
 end
 
--- Stop all given tracks.
 function AudioManager:stopAll(assetIds: { string })
 	for _, id in ipairs(assetIds) do
 		self:stop(id)
@@ -181,31 +173,61 @@ function AudioManager:stopAll(assetIds: { string })
 end
 
 function AudioManager:isPlaying(assetId: string): boolean
-	local sound = self._sounds[assetId]
-	return sound and sound.IsPlaying or false
+	local player = self._players[assetId]
+	return player and player.IsPlaying or false
 end
 
 function AudioManager:getTimeLength(assetId: string): number
-	local sound = self._sounds[assetId]
-	if sound then
-		return sound.TimeLength
+	local player = self._players[assetId]
+	if player then
+		return player.TimeLength
 	end
 	return 0
 end
 
 function AudioManager:getTimePosition(assetId: string): number
-	local sound = self._sounds[assetId]
-	if sound then
-		return sound.TimePosition
+	local player = self._players[assetId]
+	if player then
+		return player.TimePosition
 	end
 	return 0
 end
 
+-- Real-time level from AudioAnalyzer (0–1 range; analyzer reports higher values, we clamp).
+function AudioManager:getLevel(assetId: string): number
+	local analyzer = self._analyzers[assetId]
+	if not analyzer then return 0 end
+	local peak = analyzer.PeakLevel
+	if type(peak) ~= "number" then return 0 end
+	return math.clamp(peak, 0, 1)
+end
+
+-- Expose players for UI (e.g. property changed signals). Use _players in TrackCard for consistency.
+function AudioManager:getPlayer(assetId: string): Instance?
+	return self._players[assetId]
+end
+
 function AudioManager:destroy()
-	for _, sound in pairs(self._sounds) do
-		sound:Destroy()
+	for _, w in pairs(self._wiresAnalyzer) do
+		if w and w.Parent then w:Destroy() end
 	end
-	table.clear(self._sounds)
+	for _, w in pairs(self._wiresOut) do
+		if w and w.Parent then w:Destroy() end
+	end
+	for _, a in pairs(self._analyzers) do
+		if a and a.Parent then a:Destroy() end
+	end
+	for _, p in pairs(self._players) do
+		if p and p.Parent then p:Destroy() end
+	end
+	if self._deviceOutput and self._deviceOutput.Parent then
+		self._deviceOutput:Destroy()
+	end
+	table.clear(self._players)
+	table.clear(self._wiresOut)
+	table.clear(self._analyzers)
+	table.clear(self._wiresAnalyzer)
+	self._deviceOutput = nil
 	table.clear(self._trackStates)
 end
 

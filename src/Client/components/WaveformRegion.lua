@@ -1,7 +1,15 @@
 --[[
 	Waveform-style bar display with draggable start/end region.
-	Roblox does not expose raw waveform data; we show a placeholder bar chart
-	by duration and allow adjusting the playback region (start/end).
+
+	Roblox does not expose pre-rendered waveform data for an asset. With the OLD Sound API
+	there is no way to get amplitude or spectrum. With the NEW Audio API, AudioAnalyzer
+	(wired via Wire to AudioPlayer) provides:
+	  - GetSpectrum() → array of RMS levels per frequency bin (0–24kHz) for the *last buffer only*
+	  - PeakLevel / RmsLevel for that buffer
+	So you can build a *live* spectrum or rolling waveform while playback is running, but
+	there is no API that returns "the waveform for the whole file" as data. A full-file
+	waveform overview would require playing through (or decoding) and sampling.
+	We show a placeholder bar by duration and allow adjusting the playback region.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
