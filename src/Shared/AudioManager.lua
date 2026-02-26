@@ -29,8 +29,8 @@ export type TrackState = {
 
 function AudioManager.new()
 	local self = setmetatable({}, AudioManager)
-	self._sounds: { [string]: Sound } = {}
-	self._trackStates: { [string]: TrackState } = {}
+	self._sounds = {}
+	self._trackStates = {}
 	return self
 end
 
