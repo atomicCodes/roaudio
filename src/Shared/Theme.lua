@@ -38,6 +38,7 @@ local Theme = {
 
 	-- Font
 	Font = Enum.Font.Gotham,
+	FontBold = Enum.Font.GothamSemibold,
 	FontSize = 14,
 	FontSizeSmall = 12,
 	FontSizeTitle = 16,

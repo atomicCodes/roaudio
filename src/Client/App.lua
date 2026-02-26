@@ -12,8 +12,8 @@ local TrackCard = require(script.Parent.components.TrackCard)
 -- (Toolbox → Audio, or your uploaded sounds) to avoid load errors.
 local DEFAULT_ASSET_IDS = {}
 
--- Logo: asset ID is used in main.client.lua to create the top-right logo (ImageLabel). Change it there if you update the image.
-local LOGO_ASSET_ID = "115220141563031"
+-- Logo: IMAGE asset ID (Creator Hub → Images). Use "0" to hide. Decals don't load in ImageLabel.
+local LOGO_ASSET_ID = "88773897350118"
 
 local function App(_props)
 	local audioManagerRef = React.useRef(nil)
@@ -23,7 +23,7 @@ local function App(_props)
 	local audioManager = audioManagerRef.current
 
 	local tracks, setTracks = React.useState(DEFAULT_ASSET_IDS)
-	local addInput, setAddInput = React.useState("")
+	local addInput, setAddInput = React.useState("135496497649002")
 
 	local onAddTrack = React.useCallback(function()
 		local id = addInput:gsub("%D", "")
@@ -68,20 +68,24 @@ local function App(_props)
 		end)
 	end, { tracks })
 
-	-- Master playhead: show time in seconds when any track is playing (use first playing track's position)
+	-- Master playhead and global play state: show time and whether any track is playing
 	local masterTime, setMasterTime = React.useState(0)
+	local anyPlaying, setAnyPlaying = React.useState(false)
 	React.useEffect(function()
 		local RunService = game:GetService("RunService")
 		local conn
 		conn = RunService.Heartbeat:Connect(function()
 			local t = 0
+			local playing = false
 			for _, id in ipairs(tracks) do
 				if audioManager:isPlaying(id) then
 					t = audioManager:getTimePosition(id)
+					playing = true
 					break
 				end
 			end
 			setMasterTime(t)
+			setAnyPlaying(playing)
 		end)
 		return function()
 			conn:Disconnect()
@@ -90,9 +94,16 @@ local function App(_props)
 
 	local function formatTime(sec: number): string
 		local m = math.floor(sec / 60)
-		local s = sec - m * 60
-		return string.format("%d:%04.1f", m, s)
+		local s = math.floor(sec % 60)
+		local h = math.floor((sec % 1) * 100)
+		return string.format("%d:%02d.%02d", m, s, h)
 	end
+
+	local playheadMinutes = math.floor(masterTime / 60)
+	local playheadSeconds = math.floor(masterTime % 60)
+	local playheadHundredths = math.floor((masterTime % 1) * 100)
+	local playheadHours = math.floor(playheadMinutes / 60)
+	local playheadM = playheadMinutes % 60
 
 	React.useEffect(function()
 		return function()
@@ -116,7 +127,7 @@ local function App(_props)
 				FillDirection = Enum.FillDirection.Vertical,
 				Padding = UDim.new(0, theme.Padding),
 				VerticalAlignment = Enum.VerticalAlignment.Top,
-				HorizontalAlignment = Enum.HorizontalAlignment.Center,
+				HorizontalAlignment = Enum.HorizontalAlignment.Left,
 			}),
 			React.createElement("UIPadding", {
 				key = "Padding",
@@ -127,7 +138,7 @@ local function App(_props)
 			}),
 			React.createElement("Frame", {
 			key = "Header",
-			Size = UDim2.new(1, 0, 0, 44),
+			Size = UDim2.new(1, 0, 0, 48),
 			BackgroundTransparency = 1,
 			ClipsDescendants = false,
 		}, {
@@ -137,97 +148,119 @@ local function App(_props)
 				Padding = UDim.new(0, theme.Gap),
 				VerticalAlignment = Enum.VerticalAlignment.Center,
 			}),
-			React.createElement("TextLabel", {
-				key = "Title",
-				Size = UDim2.new(0, 160, 1, 0),
-				BackgroundTransparency = 1,
-				Text = "RoAudio",
-				TextColor3 = theme.Text,
-				TextSize = theme.FontSizeTitle,
-				Font = theme.Font,
-				TextXAlignment = Enum.TextXAlignment.Left,
-			}),
-			React.createElement("TextButton", {
-				key = "PlayAll",
-				Size = UDim2.new(0, 90, 0, 32),
-				BackgroundColor3 = theme.Play,
-				BorderSizePixel = 0,
-				Text = "Play all",
-				TextColor3 = theme.Text,
-				TextSize = theme.FontSizeSmall,
-				Font = theme.Font,
-				[React.Event.MouseButton1Click] = onPlayAll,
-			}, {
-				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
-			}),
-			React.createElement("TextButton", {
-				key = "StopAll",
-				Size = UDim2.new(0, 90, 0, 32),
-				BackgroundColor3 = theme.Stop,
-				BorderSizePixel = 0,
-				Text = "Stop all",
-				TextColor3 = theme.Text,
-				TextSize = theme.FontSizeSmall,
-				Font = theme.Font,
-				[React.Event.MouseButton1Click] = onStopAll,
-			}, {
-				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
-			}),
-			React.createElement("TextLabel", {
-				key = "Playhead",
-				Size = UDim2.new(0, 72, 0, 32),
-				BackgroundColor3 = theme.Surface,
-				BorderSizePixel = 0,
-				Text = formatTime(masterTime),
-				TextColor3 = theme.Text,
-				TextSize = theme.FontSize,
-				Font = theme.Font,
-			}, {
-				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
-				React.createElement("UIPadding", {
-					key = "Pad",
-					PaddingLeft = UDim.new(0, theme.PaddingSmall),
-					PaddingRight = UDim.new(0, theme.PaddingSmall),
-				}),
-			}),
 			React.createElement("Frame", {
-				key = "AddBox",
-				Size = UDim2.new(0, 200, 0, 32),
+				key = "Playhead",
+				Size = UDim2.new(0, 0, 0, 36),
+				AutomaticSize = Enum.AutomaticSize.X,
 				BackgroundColor3 = theme.Surface,
 				BorderSizePixel = 0,
 			}, {
 				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
+				React.createElement("UIListLayout", {
+					FillDirection = Enum.FillDirection.Horizontal,
+					Padding = UDim.new(0, 0),
+					VerticalAlignment = Enum.VerticalAlignment.Center,
+					SortOrder = Enum.SortOrder.LayoutOrder,
+				}),
 				React.createElement("UIPadding", {
-					key = "Padding",
 					PaddingLeft = UDim.new(0, theme.PaddingSmall),
 					PaddingRight = UDim.new(0, theme.PaddingSmall),
 				}),
-				React.createElement("TextBox", {
-					key = "Input",
-					Size = UDim2.fromScale(1, 1),
+				-- Fixed-width segments: H : MM : SS . cc (LayoutOrder forces correct order)
+				React.createElement("TextLabel", {
+					key = "H",
+					LayoutOrder = 1,
+					Size = UDim2.new(0, 28, 1, 0),
 					BackgroundTransparency = 1,
-					PlaceholderText = "Asset ID to add...",
-					PlaceholderColor3 = theme.TextMuted,
-					Text = addInput,
+					Text = string.format("%d", playheadHours),
 					TextColor3 = theme.Text,
-					TextSize = theme.FontSizeSmall,
-					Font = theme.Font,
-					ClearTextOnFocus = false,
-					[React.Change.Text] = function(rbx)
-						setAddInput(rbx.Text)
-					end,
+					TextSize = 20,
+					Font = Enum.Font.GothamBold,
+					TextXAlignment = Enum.TextXAlignment.Right,
+				}),
+				React.createElement("TextLabel", {
+					key = "Sep0",
+					LayoutOrder = 2,
+					Size = UDim2.new(0, 10, 1, 0),
+					BackgroundTransparency = 1,
+					Text = ":",
+					TextColor3 = theme.Text,
+					TextSize = 20,
+					Font = Enum.Font.GothamBold,
+					TextXAlignment = Enum.TextXAlignment.Center,
+				}),
+				React.createElement("TextLabel", {
+					key = "M",
+					LayoutOrder = 3,
+					Size = UDim2.new(0, 28, 1, 0),
+					BackgroundTransparency = 1,
+					Text = string.format("%02d", playheadM),
+					TextColor3 = theme.Text,
+					TextSize = 20,
+					Font = Enum.Font.GothamBold,
+					TextXAlignment = Enum.TextXAlignment.Right,
+				}),
+				React.createElement("TextLabel", {
+					key = "Sep1",
+					LayoutOrder = 4,
+					Size = UDim2.new(0, 10, 1, 0),
+					BackgroundTransparency = 1,
+					Text = ":",
+					TextColor3 = theme.Text,
+					TextSize = 20,
+					Font = Enum.Font.GothamBold,
+					TextXAlignment = Enum.TextXAlignment.Center,
+				}),
+				React.createElement("TextLabel", {
+					key = "SS",
+					LayoutOrder = 5,
+					Size = UDim2.new(0, 28, 1, 0),
+					BackgroundTransparency = 1,
+					Text = string.format("%02d", playheadSeconds),
+					TextColor3 = theme.Text,
+					TextSize = 20,
+					Font = Enum.Font.GothamBold,
+					TextXAlignment = Enum.TextXAlignment.Right,
+				}),
+				React.createElement("TextLabel", {
+					key = "Sep2",
+					LayoutOrder = 6,
+					Size = UDim2.new(0, 10, 1, 0),
+					BackgroundTransparency = 1,
+					Text = ":",
+					TextColor3 = theme.Text,
+					TextSize = 20,
+					Font = Enum.Font.GothamBold,
+					TextXAlignment = Enum.TextXAlignment.Center,
+				}),
+				React.createElement("TextLabel", {
+					key = "CC",
+					LayoutOrder = 7,
+					Size = UDim2.new(0, 28, 1, 0),
+					BackgroundTransparency = 1,
+					Text = string.format("%02d", playheadHundredths),
+					TextColor3 = theme.Text,
+					TextSize = 20,
+					Font = Enum.Font.GothamBold,
+					TextXAlignment = Enum.TextXAlignment.Right,
 				}),
 			}),
 			React.createElement("TextButton", {
-				key = "AddBtn",
-				Size = UDim2.new(0, 80, 0, 32),
-				BackgroundColor3 = theme.Accent,
+				key = "PlayStopAll",
+				Size = UDim2.new(0, 90, 0, 32),
+				BackgroundColor3 = if anyPlaying then theme.Stop else theme.Play,
 				BorderSizePixel = 0,
-				Text = "Add",
+				Text = if anyPlaying then "Stop" else "Play",
 				TextColor3 = theme.Text,
-				TextSize = theme.FontSize,
+				TextSize = theme.FontSizeSmall,
 				Font = theme.Font,
-				[React.Event.MouseButton1Click] = onAddTrack,
+				[React.Event.MouseButton1Click] = function()
+					if anyPlaying then
+						onStopAll()
+					else
+						onPlayAll()
+					end
+				end,
 			}, {
 				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
 			}),
@@ -248,10 +281,11 @@ local function App(_props)
 				FillDirection = Enum.FillDirection.Vertical,
 				Padding = UDim.new(0, theme.Gap),
 				VerticalAlignment = Enum.VerticalAlignment.Top,
-				HorizontalAlignment = Enum.HorizontalAlignment.Center,
+				HorizontalAlignment = Enum.HorizontalAlignment.Left,
 			}),
 			React.createElement("UIPadding", {
 				key = "Content",
+				PaddingLeft = UDim.new(0, theme.Padding),
 				PaddingRight = UDim.new(0, theme.Padding),
 			}),
 			React.createElement(React.Fragment, { key = "Tracks" }, (function()
@@ -270,8 +304,78 @@ local function App(_props)
 				end
 				return els
 			end)()),
+			React.createElement("Frame", {
+				key = "AddRow",
+				Size = UDim2.new(1, 0, 0, 56),
+				BackgroundColor3 = theme.Surface,
+				BorderSizePixel = 0,
+			}, {
+				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.Radius) }),
+				React.createElement("UIListLayout", {
+					FillDirection = Enum.FillDirection.Horizontal,
+					Padding = UDim.new(0, theme.Gap),
+					VerticalAlignment = Enum.VerticalAlignment.Center,
+					HorizontalAlignment = Enum.HorizontalAlignment.Left,
+				}),
+				React.createElement("UIPadding", {
+					PaddingLeft = UDim.new(0, theme.Padding),
+					PaddingRight = UDim.new(0, theme.Padding),
+					PaddingTop = UDim.new(0, theme.PaddingSmall),
+					PaddingBottom = UDim.new(0, theme.PaddingSmall),
+				}),
+				React.createElement("Frame", {
+					key = "AddBox",
+					Size = UDim2.new(0, 200, 0, 32),
+					BackgroundColor3 = theme.Background,
+					BorderSizePixel = 0,
+				}, {
+					React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
+					React.createElement("UIPadding", {
+						PaddingLeft = UDim.new(0, theme.PaddingSmall),
+						PaddingRight = UDim.new(0, theme.PaddingSmall),
+					}),
+					React.createElement("TextBox", {
+						key = "Input",
+						Size = UDim2.fromScale(1, 1),
+						BackgroundTransparency = 1,
+						PlaceholderText = "Asset ID to add...",
+						PlaceholderColor3 = theme.TextMuted,
+						Text = addInput,
+						TextColor3 = theme.Text,
+						TextSize = theme.FontSizeSmall,
+						Font = theme.Font,
+						ClearTextOnFocus = false,
+						[React.Change.Text] = function(rbx)
+							setAddInput(rbx.Text)
+						end,
+					}),
+				}),
+				React.createElement("TextButton", {
+					key = "AddBtn",
+					Size = UDim2.new(0, 80, 0, 32),
+					BackgroundColor3 = theme.Accent,
+					BorderSizePixel = 0,
+					Text = "Add",
+					TextColor3 = theme.Text,
+					TextSize = theme.FontSize,
+					Font = theme.Font,
+					[React.Event.MouseButton1Click] = onAddTrack,
+				}, {
+					React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
+				}),
+			}),
 		}),
 		}),
+		(LOGO_ASSET_ID and #LOGO_ASSET_ID > 0 and LOGO_ASSET_ID ~= "0") and React.createElement("ImageLabel", {
+			key = "Logo",
+			Size = UDim2.new(0, 240, 0, 100),
+			Position = UDim2.new(1, -theme.Padding - 240, 0, theme.Padding),
+			AnchorPoint = Vector2.new(1, 0),
+			BackgroundTransparency = 1,
+			Image = "rbxassetid://" .. LOGO_ASSET_ID,
+			ScaleType = Enum.ScaleType.Fit,
+			ZIndex = 10,
+		}) or nil,
 	})
 end
 

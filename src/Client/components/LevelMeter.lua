@@ -1,5 +1,5 @@
 --[[
-	VU-style level meter: single vertical bar, fill from bottom.
+	VU-style level meter: vertical bar (fill from bottom) or horizontal bar (fill from left).
 	Uses real level from the new Audio API (AudioAnalyzer.PeakLevel) when the
 	optional `level` prop (0–1) is provided and playing; otherwise shows 0 or simulated.
 ]]
@@ -13,6 +13,7 @@ type Props = {
 	width: number?,
 	height: number?,
 	level: number?, -- 0–1, optional override (e.g. from AudioAnalyzer later)
+	horizontal: boolean?, -- if true, bar fills left-to-right; width/height define the bar size
 }
 
 local function LevelMeter(props: Props)
@@ -20,6 +21,7 @@ local function LevelMeter(props: Props)
 	local width = props.width or 16
 	local height = props.height or 60
 	local levelOverride = props.level
+	local horizontal = props.horizontal or false
 	local theme = Theme
 
 	-- Simulated level when playing (oscillating so it looks like a VU); use override if provided
@@ -56,6 +58,40 @@ local function LevelMeter(props: Props)
 		end
 	end
 
+	local fillSize, fillPosition, fillAnchor
+	local scaleTicks = {}
+	if horizontal then
+		fillSize = UDim2.new(level, 0, 1, 0)
+		fillPosition = UDim2.new(0, 0, 0, 0)
+		fillAnchor = Vector2.new(0, 0)
+		for pct = 1, 3 do
+			local frac = pct / 4
+			scaleTicks[pct] = React.createElement("Frame", {
+				key = "t" .. pct,
+				Size = UDim2.new(0, 1, 1, 0),
+				Position = UDim2.new(frac, 0, 0, 0),
+				BackgroundColor3 = theme.Border,
+				BorderSizePixel = 0,
+				BackgroundTransparency = 0.5,
+			})
+		end
+	else
+		fillSize = UDim2.new(1, 0, level, 0)
+		fillPosition = UDim2.new(0, 0, 1, 0)
+		fillAnchor = Vector2.new(0, 1)
+		for pct = 1, 3 do
+			local frac = pct / 4
+			scaleTicks[pct] = React.createElement("Frame", {
+				key = "t" .. pct,
+				Size = UDim2.new(1, 0, 0, 1),
+				Position = UDim2.new(0, 0, 1 - frac, 0),
+				BackgroundColor3 = theme.Border,
+				BorderSizePixel = 0,
+				BackgroundTransparency = 0.5,
+			})
+		end
+	end
+
 	return React.createElement("Frame", {
 		Size = UDim2.new(0, width, 0, height),
 		BackgroundColor3 = theme.WaveformBg or Color3.fromRGB(24, 24, 28),
@@ -69,33 +105,19 @@ local function LevelMeter(props: Props)
 			PaddingLeft = UDim.new(0, 2),
 			PaddingRight = UDim.new(0, 2),
 		}),
-		-- Scale ticks (VU style): horizontal lines at 25%, 50%, 75%
+		-- Scale ticks (VU style): horizontal lines at 25%, 50%, 75% (vertical bar) or vertical lines (horizontal bar)
 		React.createElement("Frame", {
 			key = "Scale",
 			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
 			ClipsDescendants = false,
-		}, (function()
-			local ticks = {}
-			for pct = 1, 3 do
-				local frac = pct / 4
-				ticks[pct] = React.createElement("Frame", {
-					key = "t" .. pct,
-					Size = UDim2.new(1, 0, 0, 1),
-					Position = UDim2.new(0, 0, 1 - frac, 0),
-					BackgroundColor3 = theme.Border,
-					BorderSizePixel = 0,
-					BackgroundTransparency = 0.5,
-				})
-			end
-			return ticks
-		end)()),
-		-- Fill: single vertical bar from bottom, height = level
+		}, scaleTicks),
+		-- Fill: vertical bar from bottom or horizontal bar from left
 		React.createElement("Frame", {
 			key = "Fill",
-			Size = UDim2.new(1, 0, level, 0),
-			Position = UDim2.new(0, 0, 1, 0),
-			AnchorPoint = Vector2.new(0, 1),
+			Size = fillSize,
+			Position = fillPosition,
+			AnchorPoint = fillAnchor,
 			BackgroundColor3 = levelColor(level),
 			BorderSizePixel = 0,
 		}, {

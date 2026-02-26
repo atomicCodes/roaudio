@@ -1,15 +1,10 @@
 --[[
 	Waveform-style bar display with draggable start/end region.
 
-	Roblox does not expose pre-rendered waveform data for an asset. With the OLD Sound API
-	there is no way to get amplitude or spectrum. With the NEW Audio API, AudioAnalyzer
-	(wired via Wire to AudioPlayer) provides:
-	  - GetSpectrum() → array of RMS levels per frequency bin (0–24kHz) for the *last buffer only*
-	  - PeakLevel / RmsLevel for that buffer
-	So you can build a *live* spectrum or rolling waveform while playback is running, but
-	there is no API that returns "the waveform for the whole file" as data. A full-file
-	waveform overview would require playing through (or decoding) and sampling.
-	We show a placeholder bar by duration and allow adjusting the playback region.
+	With the NEW Audio API, AudioPlayer:GetWaveformAsync(timeRange, samples) returns
+	an array of waveform samples for the whole file (or a time range). When
+	waveformSamples is provided, we draw a real waveform overview; otherwise a placeholder.
+	AudioAnalyzer.GetSpectrum() gives per-buffer data (live only) for a rolling display.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -23,19 +18,45 @@ type Props = {
 	regionStart: number,
 	regionEnd: number, -- 0 = full
 	timePosition: number?, -- current playhead in seconds; when set, draw playhead line
+	waveformSamples: { number }?, -- from AudioPlayer:GetWaveformAsync; when set, draw real waveform
 	onRegionChange: (start: number, end_: number) -> (),
 }
 
--- Placeholder "waveform": simple bars so it looks like a waveform
+-- Placeholder "waveform": simple bars when no real samples
 local function makeBars(count: number, height: number): { number }
 	local bars = {}
 	for i = 1, count do
-		-- Slight variation for visual interest
 		local t = (i - 1) / math.max(count - 1, 1)
 		local h = 0.3 + 0.7 * (0.5 + 0.5 * math.sin(t * 12))
 		table.insert(bars, h * height)
 	end
 	return bars
+end
+
+-- Build bar heights from GetWaveformAsync samples (downsample to barCount, normalize)
+local function samplesToBars(samples: { number }, barCount: number, height: number): { number }
+	if not samples or #samples == 0 then return makeBars(barCount, height) end
+	local n = #samples
+	local maxVal = 0.001
+	for i = 1, n do
+		local v = math.abs((samples[i]) or 0)
+		if v > maxVal then maxVal = v end
+	end
+	local bars = {}
+	for i = 1, barCount do
+		local idx = math.floor((i - 0.5) / barCount * n) + 1
+		idx = math.clamp(idx, 1, n)
+		local v = math.abs((samples[idx]) or 0) / maxVal
+		table.insert(bars, v * height)
+	end
+	return bars
+end
+
+local function formatTime(seconds: number): string
+	local m = math.floor(seconds / 60)
+	local s = math.floor(seconds % 60)
+	local h = math.floor((seconds % 1) * 100)
+	return string.format("%d:%02d.%02d", m, s, h)
 end
 
 local function WaveformRegion(props: Props)
@@ -45,15 +66,22 @@ local function WaveformRegion(props: Props)
 	local regionStart = math.clamp(props.regionStart, 0, duration)
 	local regionEnd = props.regionEnd > 0 and math.clamp(props.regionEnd, regionStart, duration) or duration
 	local timePosition = props.timePosition
+	local waveformSamples = props.waveformSamples
 	local onRegionChange = props.onRegionChange
 	local theme = Theme
 	local containerRef = React.useRef(nil)
+	local draggingMarker, setDraggingMarker = React.useState(nil :: "start" | "end" | nil)
 
 	local startFrac = regionStart / duration
 	local endFrac = regionEnd / duration
 	local playheadFrac = (type(timePosition) == "number" and duration > 0) and math.clamp(timePosition / duration, 0, 1) or nil
 	local barCount = math.floor(width / 4)
-	local bars = makeBars(barCount, height)
+	local bars
+	if waveformSamples and #waveformSamples > 0 then
+		bars = samplesToBars(waveformSamples, barCount, height)
+	else
+		bars = makeBars(barCount, height)
+	end
 
 	local function updateFromMouse(isStart: boolean?)
 		local frame = containerRef.current
@@ -74,15 +102,16 @@ local function WaveformRegion(props: Props)
 		Size = UDim2.new(0, width, 0, height),
 		BackgroundColor3 = theme.WaveformBg,
 		BorderSizePixel = 0,
-	}, {
-		React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
-		React.createElement("Frame", {
-			key = "Clip",
-			Size = UDim2.fromScale(1, 1),
-			BackgroundTransparency = 1,
-			ClipsDescendants = true,
-			ref = containerRef,
-		}, (function()
+	}, (function()
+		local outerChildren = {
+			React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, theme.RadiusSmall) }),
+			React.createElement("Frame", {
+				key = "Clip",
+				Size = UDim2.fromScale(1, 1),
+				BackgroundTransparency = 1,
+				ClipsDescendants = true,
+				ref = containerRef,
+			}, (function()
 			local playheadEl = nil
 			if playheadFrac ~= nil then
 				playheadEl = React.createElement("Frame", {
@@ -105,12 +134,13 @@ local function WaveformRegion(props: Props)
 					BackgroundTransparency = 1,
 				}, (function()
 					local els = {}
-					for i, barHeight in ipairs(bars) do
+								for i = 1, barCount do
+						local barHeight = bars[i] or 0
 						local x = (i - 1) / barCount
 						els[i] = React.createElement("Frame", {
 							key = "b" .. i,
 							Size = UDim2.new(0, 2, barHeight / height, -2),
-							Position = UDim2.new(x, 2, 0.5, -barHeight / 2),
+							Position = UDim2.new(x, 2, 0.5, 0),
 							AnchorPoint = Vector2.new(0, 0.5),
 							BackgroundColor3 = theme.WaveformBar,
 							BorderSizePixel = 0,
@@ -135,14 +165,15 @@ local function WaveformRegion(props: Props)
 			if playheadEl then table.insert(clipChildren, playheadEl) end
 			table.insert(clipChildren, React.createElement("TextButton", {
 				key = "StartHandle",
-				Size = UDim2.new(0, 8, 1, 4),
-				Position = UDim2.new(startFrac, -4, 0, -2),
+				Size = UDim2.new(0, 2, 1, 0),
+				Position = UDim2.new(startFrac, -1, 0, 0),
 				BackgroundColor3 = theme.Accent,
 				BorderSizePixel = 0,
 				Text = "",
 				AutoButtonColor = false,
 				ZIndex = 2,
 				[React.Event.MouseButton1Down] = function()
+					setDraggingMarker("start")
 					local uis = game:GetService("UserInputService")
 					local conn
 					conn = uis.InputChanged:Connect(function(input)
@@ -153,22 +184,24 @@ local function WaveformRegion(props: Props)
 					uis.InputEnded:Once(function(i)
 						if i.UserInputType == Enum.UserInputType.MouseButton1 then
 							conn:Disconnect()
+							setDraggingMarker(nil)
 						end
 					end)
 				end,
 			}, {
-				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, 2) }),
+				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, 1) }),
 			}))
 			table.insert(clipChildren, React.createElement("TextButton", {
 				key = "EndHandle",
-				Size = UDim2.new(0, 8, 1, 4),
-				Position = UDim2.new(endFrac, -4, 0, -2),
+				Size = UDim2.new(0, 2, 1, 0),
+				Position = UDim2.new(endFrac, -1, 0, 0),
 				BackgroundColor3 = theme.Accent,
 				BorderSizePixel = 0,
 				Text = "",
 				AutoButtonColor = false,
 				ZIndex = 2,
 				[React.Event.MouseButton1Down] = function()
+					setDraggingMarker("end")
 					local uis = game:GetService("UserInputService")
 					local conn
 					conn = uis.InputChanged:Connect(function(input)
@@ -179,15 +212,63 @@ local function WaveformRegion(props: Props)
 					uis.InputEnded:Once(function(i)
 						if i.UserInputType == Enum.UserInputType.MouseButton1 then
 							conn:Disconnect()
+							setDraggingMarker(nil)
 						end
 					end)
 				end,
 			}, {
-				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, 2) }),
+				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, 1) }),
 			}))
 			return clipChildren
 		end)()),
-	})
-end
+		}
+		-- Always show start and end position under their markers (stay after moving)
+		table.insert(outerChildren, React.createElement("Frame", {
+			key = "StartTooltip",
+			Position = UDim2.new(startFrac, 0, 1, 4),
+			AnchorPoint = Vector2.new(0.5, 0),
+			Size = UDim2.new(0, 0, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.XY,
+			BackgroundColor3 = theme.WaveformBg or Color3.fromRGB(40, 40, 40),
+			BorderSizePixel = 0,
+			ZIndex = 10,
+		}, {
+			React.createElement("UICorner", { CornerRadius = UDim.new(0, 4) }),
+			React.createElement("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6), PaddingTop = UDim.new(0, 4), PaddingBottom = UDim.new(0, 4) }),
+			React.createElement("TextLabel", {
+				Size = UDim2.fromScale(1, 1),
+				AutomaticSize = Enum.AutomaticSize.XY,
+				BackgroundTransparency = 1,
+				Text = formatTime(regionStart),
+				TextColor3 = theme.Text or Color3.fromRGB(255, 255, 255),
+				TextSize = 12,
+				Font = Enum.Font.Gotham,
+			}),
+		}))
+		table.insert(outerChildren, React.createElement("Frame", {
+			key = "EndTooltip",
+			Position = UDim2.new(endFrac, 0, 1, 4),
+			AnchorPoint = Vector2.new(0.5, 0),
+			Size = UDim2.new(0, 0, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.XY,
+			BackgroundColor3 = theme.WaveformBg or Color3.fromRGB(40, 40, 40),
+			BorderSizePixel = 0,
+			ZIndex = 10,
+		}, {
+			React.createElement("UICorner", { CornerRadius = UDim.new(0, 4) }),
+			React.createElement("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6), PaddingTop = UDim.new(0, 4), PaddingBottom = UDim.new(0, 4) }),
+			React.createElement("TextLabel", {
+				Size = UDim2.fromScale(1, 1),
+				AutomaticSize = Enum.AutomaticSize.XY,
+				BackgroundTransparency = 1,
+				Text = formatTime(regionEnd),
+				TextColor3 = theme.Text or Color3.fromRGB(255, 255, 255),
+				TextSize = 12,
+				Font = Enum.Font.Gotham,
+			}),
+		}))
+		return outerChildren
+	end)())
+	end
 
 return WaveformRegion
