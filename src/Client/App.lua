@@ -1,5 +1,6 @@
 --[[
 	Main App: layout, add-track input, and list of track cards.
+	Toggle between GUI view and World view (blocks in workspace per track).
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -7,6 +8,7 @@ local React = require(ReplicatedStorage.Packages.React)
 local Theme = require(ReplicatedStorage.Shared.Theme)
 local AudioManager = require(ReplicatedStorage.Shared.AudioManager)
 local TrackCard = require(script.Parent.components.TrackCard)
+local WorldBlocks = require(script.Parent.WorldBlocks)
 
 -- No default asset IDs: external IDs often 403 (permissions/region). Add your own via the Add box
 -- (Toolbox → Audio, or your uploaded sounds) to avoid load errors.
@@ -24,6 +26,7 @@ local function App(_props)
 
 	local tracks, setTracks = React.useState(DEFAULT_ASSET_IDS)
 	local addInput, setAddInput = React.useState("135496497649002")
+	local viewMode, setViewMode = React.useState("gui") -- "gui" | "world"
 
 	local onAddTrack = React.useCallback(function()
 		local id = addInput:gsub("%D", "")
@@ -111,10 +114,18 @@ local function App(_props)
 		end
 	end, {})
 
+	-- When switching to world view or when tracks change in world view, sync blocks
+	React.useEffect(function()
+		if viewMode == "world" then
+			WorldBlocks.sync(tracks)
+		end
+	end, { viewMode, tracks })
+
 	local theme = Theme
 	return React.createElement("Frame", {
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = theme.Background,
+		BackgroundTransparency = if viewMode == "world" then 1 else 0,
 		BorderSizePixel = 0,
 	}, {
 		React.createElement("Frame", {
@@ -138,7 +149,7 @@ local function App(_props)
 			}),
 			React.createElement("Frame", {
 			key = "Header",
-			Size = UDim2.new(1, 0, 0, 48),
+			Size = UDim2.new(1, 0, 0, 56),
 			BackgroundTransparency = 1,
 			ClipsDescendants = false,
 		}, {
@@ -147,9 +158,28 @@ local function App(_props)
 				FillDirection = Enum.FillDirection.Horizontal,
 				Padding = UDim.new(0, theme.Gap),
 				VerticalAlignment = Enum.VerticalAlignment.Center,
+				SortOrder = Enum.SortOrder.LayoutOrder,
+			}),
+			React.createElement("TextButton", {
+				key = "ViewToggle",
+				LayoutOrder = 0,
+				Size = UDim2.new(0, 160, 0, 44),
+				BackgroundColor3 = if viewMode == "gui" then Color3.fromRGB(0, 150, 200) else theme.Accent,
+				BorderSizePixel = 0,
+				Text = if viewMode == "gui" then "3D World" else "Back to GUI",
+				TextColor3 = Color3.fromRGB(255, 255, 255),
+				TextSize = 18,
+				Font = Enum.Font.GothamBold,
+				[React.Event.MouseButton1Click] = function()
+					setViewMode(if viewMode == "gui" then "world" else "gui")
+				end,
+			}, {
+				React.createElement("UICorner", { key = "Corner", CornerRadius = UDim.new(0, 8) }),
+				React.createElement("UIStroke", { Color = Color3.fromRGB(255, 255, 255), Thickness = 2 }),
 			}),
 			React.createElement("Frame", {
 				key = "Playhead",
+				LayoutOrder = 1,
 				Size = UDim2.new(0, 0, 0, 36),
 				AutomaticSize = Enum.AutomaticSize.X,
 				BackgroundColor3 = theme.Surface,
@@ -247,6 +277,7 @@ local function App(_props)
 			}),
 			React.createElement("TextButton", {
 				key = "PlayStopAll",
+				LayoutOrder = 2,
 				Size = UDim2.new(0, 90, 0, 32),
 				BackgroundColor3 = if anyPlaying then theme.Stop else theme.Play,
 				BorderSizePixel = 0,
@@ -267,8 +298,9 @@ local function App(_props)
 		}),
 		React.createElement("ScrollingFrame", {
 			key = "Scroll",
-			Size = UDim2.new(1, -theme.Padding * 2, 1, -80),
-			Position = UDim2.new(0, theme.Padding, 0, 56),
+			Visible = (viewMode == "gui"),
+			Size = UDim2.new(1, -theme.Padding * 2, 1, -88),
+			Position = UDim2.new(0, theme.Padding, 0, 64),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			ScrollBarThickness = 6,
@@ -366,7 +398,7 @@ local function App(_props)
 			}),
 		}),
 		}),
-		(LOGO_ASSET_ID and #LOGO_ASSET_ID > 0 and LOGO_ASSET_ID ~= "0") and React.createElement("ImageLabel", {
+		(LOGO_ASSET_ID and #LOGO_ASSET_ID > 0 and LOGO_ASSET_ID ~= "0" and viewMode == "gui") and React.createElement("ImageLabel", {
 			key = "Logo",
 			Size = UDim2.new(0, 240, 0, 100),
 			Position = UDim2.new(1, -theme.Padding - 240, 0, theme.Padding),
