@@ -25,6 +25,8 @@ local Theme = {
 	WaveformBar = Color3.fromRGB(80, 80, 100),
 	WaveformRegion = Color3.fromRGB(0, 200, 180),
 	WaveformRegionAlpha = 0.35,
+	Playhead = Color3.fromRGB(255, 255, 255),
+	PlayheadAlpha = 0.9,
 
 	-- Spacing
 	Padding = 12,
@@ -36,6 +38,7 @@ local Theme = {
 
 	-- Font
 	Font = Enum.Font.Gotham,
+	FontBold = Enum.Font.GothamSemibold,
 	FontSize = 14,
 	FontSizeSmall = 12,
 	FontSizeTitle = 16,
